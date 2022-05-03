@@ -1,0 +1,20 @@
+{
+  "DataWareHouse.Database.Synonyms::humio": {
+    "target": {
+      "object": "XSA_KEY_VAULT.db.Procedures::humio",
+      "*.configure": "XSA_KEY_VAULT"
+    }
+  },
+  "DataWareHouse.Database.Synonyms::token": {
+    "target": {
+      "object": "XSA_KEY_VAULT.db.Procedures::token",
+      "*.configure": "XSA_KEY_VAULT"
+    }
+  },
+  "DataWareHouse.Database.Synonyms::DUMMY": {
+    "target": {
+      "object": "DUMMY",
+      "schema": "SYS"
+    }
+  }
+}

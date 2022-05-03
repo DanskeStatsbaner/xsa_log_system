@@ -1,0 +1,5 @@
+{
+  "DataWareHouse.Database.Synonyms::humio": {},
+  "DataWareHouse.Database.Synonyms::token": {},
+  "DataWareHouse.Database.Synonyms::DUMMY": {}
+} 
