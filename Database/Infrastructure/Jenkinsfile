@@ -149,7 +149,7 @@ pipeline {
                 sh "npm config set @sap:registry https://artifactory.azure.dsb.dk/artifactory/api/npm/npm-sap/"
                 sh "mbt build -p=xsa --mtar dataART.${projectName}.${version}.mtar"
                 stash includes: "mta_archives/dataART.${projectName}.${version}.mtar", name: "mtarfile", useDefaultExcludes: false                
-                stash includes: "Deployment/**/**/*", name: "DeploymentFiles", useDefaultExcludes: false
+                stash includes: "Infrastructure/**/**/*", name: "DeploymentFiles", useDefaultExcludes: false
                 
                 fileOperations([
                           fileDeleteOperation(
