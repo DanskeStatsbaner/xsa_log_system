@@ -84,13 +84,7 @@ pipeline {
                    } 
                    echo "*** service OK ***"
                                  
-                   echo "*** find Deployment directory ***"
-                   script {
-                      def status = sh returnStatus: true, script:"cd Deployment"
-                      println("findDirectory $status")
-                      sh "exit ${status}"                      
-                   } 
-                   echo "*** Deployment directory fundet ***"
+                
               
                    echo "*** find role ***"
                    script {
