@@ -24,12 +24,13 @@ SELECT
 FROM "DataWareHouse.Database.Virtualtables::M_SERVICES"
 ;
 
+
 SELECT DISTINCT
 	CASE 
 		WHEN "SYSTEM_ID" = 'NU0' THEN 'DEV'
 		WHEN "SYSTEM_ID" = 'NPT'	THEN 'TEST'
 		WHEN "SYSTEM_ID" = 'NP0' THEN 'PROD'
-		END AS "Environment" INTO ENVIRONMENT
+		END AS "ENVIRONMENT" INTO ENVIRONMENT
 		FROM "DataWareHouse.Database.Virtualtables::M_DATABASE";
 
 
@@ -54,7 +55,7 @@ SELECT DISTINCT
     LOG_LEVEL => :LOG_LEVEL,
     HOST => 'HANA',
     SRC => 'services_monitor.hdbprocedure',
-       ATTRIBUTES => '"LOG_TIMESTAMP":"' || :LOG_TIMESTAMP || '"ENVIRONMENT":"' || :ENVIRONMENT || '", "HOST":"' || :HOST || '", "PORT":"' || :PORT || '", "SERVICE_NAME":"' || :SERVICE_NAME
+       ATTRIBUTES => '"LOG_TIMESTAMP":"' || :LOG_TIMESTAMP || '", "ENVIRONMENT":"' || :ENVIRONMENT || '", "HOST":"' || :HOST || '", "PORT":"' || :PORT || '", "SERVICE_NAME":"' || :SERVICE_NAME
        || '", "PROCESS_ID":"' || :PROCESS_ID  || '", "ACTIVE_STATUS":"' || :ACTIVE_STATUS || '", "SQL_PORT":"' || :SQL_PORT
        || '", "COORDINATOR_TYPE":"' || :COORDINATOR_TYPE || '", "IS_DATABASE_LOCAL":"' || :IS_DATABASE_LOCAL 
        ||'"',

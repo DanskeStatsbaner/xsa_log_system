@@ -26,13 +26,15 @@ SELECT
 FROM "DataWareHouse.Database.Virtualtables::M_AGENTS"
 ;
 
+
 SELECT DISTINCT
 	CASE 
 		WHEN "SYSTEM_ID" = 'NU0' THEN 'DEV'
 		WHEN "SYSTEM_ID" = 'NPT'	THEN 'TEST'
 		WHEN "SYSTEM_ID" = 'NP0' THEN 'PROD'
-		END AS "Environment" INTO ENVIRONMENT
+		END AS "ENVIRONMENT" INTO ENVIRONMENT
 		FROM "DataWareHouse.Database.Virtualtables::M_DATABASE";
+
 
 
 	IF RECORD_COUNT(:AGENT_EVENTS) >= 1 THEN
@@ -50,13 +52,13 @@ SELECT DISTINCT
 		THEN	LOG_LEVEL = 'INFO';
 	ELSE LOG_LEVEL = 'WARNING';
 	END IF;
-	
 			CALL "DataWareHouse.Database.Synonyms::humio"(
     MESSAGE => 'Native HANA system log',
     LOG_LEVEL => :LOG_LEVEL,
     HOST => 'HANA',
     SRC => 'agents_monitor.hdbprocedure',
-       ATTRIBUTES => '"LOG_TIMESTAMP":"' || :LOG_TIMESTAMP || '"ENVIRONMENT":"' || :ENVIRONMENT || '", "AGENT_NAME":"' || :AGENT_NAME || '", "FREE_PHYSICAL_MEMORY_GB":"' || :FREE_PHYSICAL_MEMORY_GB || '", "FREE_SWAP_SPACE_GB":"' || :FREE_SWAP_SPACE_GB 
+       ATTRIBUTES => '"LOG_TIMESTAMP":"' || :LOG_TIMESTAMP || '", "ENVIRONMENT":"' || :ENVIRONMENT || '", "AGENT_NAME":"' || :AGENT_NAME 
+       ||  '", "FREE_PHYSICAL_MEMORY_GB":"' || :FREE_PHYSICAL_MEMORY_GB || '", "FREE_SWAP_SPACE_GB":"' || :FREE_SWAP_SPACE_GB 
        || '", "USED_PHYSICAL_MEMORY_GB":"' || :USED_PHYSICAL_MEMORY_GB  || '", "USED_SWAP_SPACE":"' || :USED_SWAP_SPACE 
        || '", "LOG_TIMESTAMP":"' || :LOG_TIMESTAMP || '", "AGENT_VERSION":"' || :AGENT_VERSION ||  '", "AGENT_STATUS":"' || :AGENT_STATUS 
        ||'"',
