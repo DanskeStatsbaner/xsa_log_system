@@ -55,13 +55,7 @@ pipeline {
                    } 
                    echo "*** service OK ***"
                      
-                   echo "*** find sap/hdi-deploy version 3.11.9 i package.json ***"
-                   script {
-                      def status = sh returnStatus: true, script:"grep $findVersion */package.json"
-                      println("findVersion $status")
-                      sh "exit ${status}"                      
-                   } 
-                   echo "*** sap/hdi-deploy version 3.11.9 fundet ***"
+                
               
                   
                    
@@ -71,16 +65,15 @@ pipeline {
         stage ("Build mtar") {
            agent {
              docker {
-                image "${artifactoryDocker}/xsa_mta_builder:latest"
+                image "${artifactoryDocker}/xsa_mbt_builder:latest"
                 registryUrl "http://${artifactoryDocker}"
                 registryCredentialsId 'Artifactory'
                 reuseNode true
                     }
                  }
             steps {
-                sh "mtaBuild --mtar dataART.${projectName}.${version}.mtar --build-target XSA build"
-                stash includes: "dataART.${projectName}.${version}.mtar", name: "mtarfile", useDefaultExcludes: false                
-                 stash includes: "Infrastructure/*.ps1", name: "PSscripts", useDefaultExcludes: false      
+                sh "mbt build -p=xsa --mtar dataART.${projectName}.${version}.mtar"
+                stash includes: "mta_archives/dataART.${projectName}.${version}.mtar", name: "mtarfile", useDefaultExcludes: false    
                               
 
                
@@ -103,7 +96,7 @@ pipeline {
                 fileOperations([                        
                         fileCopyOperation(
                                 flattenFiles: true, 
-                                includes: "dataART.${projectName}.${version}.mtar", 
+                                includes: "mta_archives/dataART.${projectName}.${version}.mtar",, 
                                 targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/"),
                         fileCopyOperation(
                                 flattenFiles: true,
