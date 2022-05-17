@@ -204,42 +204,6 @@ pipeline {
                 fileOperations([ 
                         fileCopyOperation(
                                 flattenFiles: true, 
-                                includes: "Deployment/PostDeploy/dev/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PostDeploy/dev/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/PostDeploy/tst/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PostDeploy/tst/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/PostDeploy/prd/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PostDeploy/prd/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/PreDeploy/dev/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PreDeploy/dev/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/PreDeploy/tst/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PreDeploy/tst/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/PreDeploy/prd/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PreDeploy/prd/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/Test/dev/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/Test/dev/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/Test/tst/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/Test/tst/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
-                                includes: "Deployment/Test/prd/*.*", 
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/Test/prd/"),
-                        fileCopyOperation(
-                                flattenFiles: true, 
                                 includes: "mta_archives/dataART.${projectName}.${version}.mtar",
                                 targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/"),
                         fileCopyOperation(
