@@ -316,7 +316,7 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
     LOG_LEVEL => 'WARNING',
     HOST => 'HANA',
     SRC => 'OOM_Events.hdbprocedure',
-       ATTRIBUTES => '"environment":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
+       ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
        || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
        || '", "EXECUTION_ENGINE":"' || :EXECUTION_ENGINE || '", "SCHEMA_NAME":"' || :SCHEMA_NAME || '", "STATEMENT_STRING":"' || :STATEMENT_STRING
        ||'"',

@@ -1,9 +1,0 @@
-{
-	 "XSA_SYSTEM_LOG.db.Synonyms::humio": {},
-	 "XSA_SYSTEM_LOG.db.Synonyms::token": {},
-	 "XSA_SYSTEM_LOG.db.Synonyms::M_OUT_OF_MEMORY_EVENTS": {},
-	 "XSA_SYSTEM_LOG.db.Synonyms::GLOBAL_OUT_OF_MEMORY_EVENTS": {},
-	 "XSA_SYSTEM_LOG.db.Synonyms::DUMMY": {}
-
- 
-}
