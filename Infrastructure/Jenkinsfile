@@ -1,3 +1,4 @@
+
 pipeline {
 
     agent {
@@ -12,7 +13,7 @@ pipeline {
         disableConcurrentBuilds()
     }
     environment {
-    	daProject = "${env.GIT_URL.replaceFirst(/^.*\/([^\/]+?).git$/, '$1')}"
+        daProject = "${env.GIT_URL.replaceFirst(/^.*\/([^\/]+?).git$/, '$1')}"
         projectName  = "${daProject.toLowerCase()}"
         deployTo = "sit"
         version = "1.0.0.${env.BUILD_NUMBER}"
@@ -33,7 +34,35 @@ pipeline {
 
     stages {
     
-      
+        stage ("Octopus Project Sync") {
+            agent { label "windows" }
+            steps {
+                bat 'del *.nupkg'
+                bat 'del *.zip'
+              
+                rtDownload(
+                    spec: '''{ "files": [
+                        {
+                            "pattern": "octopus-dataarten/dataART.xsa_octopus.*",
+                            "sortBy": ["created"],
+                            "sortOrder": "desc",
+                            "limit": 1
+                        }
+                    ] }''',
+                    serverId: "${artifactoryServerId}"
+                )
+              
+                bat 'ren *.nupkg xsa_octopus.zip'
+                unzip zipFile: "xsa_octopus.zip"
+
+                bat 'xcopy SpaceCloner-master\\* .\\* /s /e /i /y'
+
+                powershell """
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    ./SetupOctopusProject.ps1 -fromProjectName $parentProject -toProjectName $octoName -octopusUrl $octoUrl -octopusApiKey $apiKey
+                    """
+            }
+        }  
       stage ("Check Code") {
             steps {
 
@@ -54,10 +83,61 @@ pipeline {
                       sh "exit ${status}" 
                    } 
                    echo "*** service OK ***"
-                     
-                
+                                 
+                   echo "*** find Deployment directory ***"
+                   script {
+                      def status = sh returnStatus: true, script:"cd Deployment"
+                      println("findDirectory $status")
+                      sh "exit ${status}"                      
+                   } 
+                   echo "*** Deployment directory fundet ***"
               
-                  
+                   echo "*** find role ***"
+                   script {
+                     
+                     def status = sh returnStatus: true, script:"grep -ir --include '*.hdbrole' 'SHIP.' . "
+                      
+                     if (status==0)
+                     {
+                          println("En ship rolle er fundet")                
+                          def status1 = sh returnStatus: true, script:"grep -ir --include '*.hdbrole' $findShipRole . "                     
+                          if (status1==0)
+                          {
+                             println("En ship rolle som passer med projektet er fundet")                            
+                             def status2 = sh returnStatus: true, script:"grep -ir --include '*.hdbrole' 'SHIP.P_' . "                             
+                             if (status2==0)
+                             {
+                                 println("Projektet er en P-container")
+                                 sh "exit 0"
+                             }
+                             else
+                             {
+                                 println("ERROR: Kun P container må indeholde en SHIP rolle")
+                                 sh "exit 1"
+                             }
+                          }
+                          else
+                          {
+                             println("ERROR: Ingen ship rolle som passer med projektet er fundet")
+                             sh "exit 1"
+                          }
+                      }
+                      else
+                      {   
+                          if (firstCharInProject=='P')
+                          {
+                              println("ERROR: P container skal indeholde SHIP rolle")
+                              sh "exit 1"
+                          }
+                          else
+                          {  
+                              println("Ingen P container og derfor ingen SHIP rolle fundet")
+                              sh "exit 0"
+                          }  
+                      }
+                   } 
+                   echo "*** SHIP role OK ***"
+
                    
                    echo "****************************   slut test container   ***************************"               
             }            
@@ -72,11 +152,38 @@ pipeline {
                     }
                  }
             steps {
+                sh "npm config set @sap:registry https://artifactory.azure.dsb.dk/artifactory/api/npm/npm-sap/"
                 sh "mbt build -p=xsa --mtar dataART.${projectName}.${version}.mtar"
-                stash includes: "mta_archives/dataART.${projectName}.${version}.mtar", name: "mtarfile", useDefaultExcludes: false    
-                              
+                stash includes: "mta_archives/dataART.${projectName}.${version}.mtar", name: "mtarfile", useDefaultExcludes: false                
+                stash includes: "Deployment/**/**/*", name: "DeploymentFiles", useDefaultExcludes: false
+                
+                fileOperations([
+                          fileDeleteOperation(
+                              includes: 'dataART.xsa_ps1_deploy.*')])
+  
+                rtDownload(
+                    spec: '''{ "files": [
+                        {
+                            "pattern": "octopus-dataarten/dataART.xsa_ps1_deploy.*",
+                            "sortBy": ["created"],
+                            "sortOrder": "desc",
+                            "limit": 1
+                        }
+                    ] }''',
+                    serverId: "${artifactoryServerId}"
+                )
+                
+                sh "cp dataART.xsa_ps1_deploy.*.nupkg dataART.xsa_ps1_deploy.zip"
+                
+                unzip zipFile: "$WORKSPACE/dataART.xsa_ps1_deploy.zip", dir: "$WORKSPACE/"
 
-               
+                stash includes: "*.ps1", name: "PSscripts", useDefaultExcludes: false
+            }
+            post {
+                  failure {
+                      archiveArtifacts allowEmptyArchive: true, artifacts: '/home/mta/.npm/_logs/*.*', followSymlinks: false 
+   
+                  }
             }
         }
         
@@ -88,20 +195,57 @@ pipeline {
                 }
 		    }
                 steps {
-                unstash "mtarfile"                
+                unstash "mtarfile"
                 unstash "PSscripts"
+                unstash "DeploymentFiles"
                   
                 sh "rm -rf dataART.${projectName}.${version}"
                 
-                fileOperations([                        
+                fileOperations([ 
                         fileCopyOperation(
                                 flattenFiles: true, 
-                                includes: "mta_archives/dataART.${projectName}.${version}.mtar",, 
+                                includes: "Deployment/PostDeploy/dev/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PostDeploy/dev/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/PostDeploy/tst/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PostDeploy/tst/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/PostDeploy/prd/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PostDeploy/prd/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/PreDeploy/dev/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PreDeploy/dev/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/PreDeploy/tst/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PreDeploy/tst/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/PreDeploy/prd/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/PreDeploy/prd/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/Test/dev/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/Test/dev/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/Test/tst/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/Test/tst/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "Deployment/Test/prd/*.*", 
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/Test/prd/"),
+                        fileCopyOperation(
+                                flattenFiles: true, 
+                                includes: "mta_archives/dataART.${projectName}.${version}.mtar",
                                 targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/"),
                         fileCopyOperation(
                                 flattenFiles: true,
-                                includes: "Infrastructure/*.ps1",
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/")])
+                                includes: "*.ps1",
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/Deployment/Scripts/")])
 
                 sh """ octo pack --id="dataART.${projectName}" --version="${packageVersion}" --basepath="$WORKSPACE/dataART.${projectName}.${version}" --outFolder=$WORKSPACE """
                 
