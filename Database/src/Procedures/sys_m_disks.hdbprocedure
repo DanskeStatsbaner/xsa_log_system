@@ -47,7 +47,11 @@ SELECT DISTINCT
 		END AS "ENVIRONMENT" INTO ENVIRONMENT
 		FROM "DataWareHouse.Database.Virtualtables::M_DATABASE";
 
-
+  CALL "DataWareHouse.Database.Synonyms::token"(
+	APP => 'AP_HUMIO',
+	EXCEPTION_ON_ERROR => 1,
+	JWT => ingesttoken
+);
 
 	IF RECORD_COUNT(:SYS_M_DISKS) >= 1 THEN
 		FOR k IN 1..RECORD_COUNT(:SYS_M_DISKS) DO 

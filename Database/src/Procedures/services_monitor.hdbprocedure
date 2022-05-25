@@ -24,6 +24,11 @@ SELECT
 FROM "DataWareHouse.Database.Virtualtables::M_SERVICES"
 ;
 
+  CALL "DataWareHouse.Database.Synonyms::token"(
+	APP => 'AP_HUMIO',
+	EXCEPTION_ON_ERROR => 1,
+	JWT => ingesttoken
+);
 
 SELECT DISTINCT
 	CASE 

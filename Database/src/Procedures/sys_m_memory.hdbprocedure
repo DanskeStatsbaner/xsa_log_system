@@ -75,7 +75,11 @@ PORT,
 	FROM :PIVOTED_TABLE WHERE PORT = 30003;
 
 
-
+  CALL "DataWareHouse.Database.Synonyms::token"(
+	APP => 'AP_HUMIO',
+	EXCEPTION_ON_ERROR => 1,
+	JWT => ingesttoken
+);
 
 SELECT DISTINCT
 	CASE 
