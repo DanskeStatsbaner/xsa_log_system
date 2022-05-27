@@ -1,9 +1,10 @@
 {
-  "description": "Runs services monitor",
+  "description": "Runs agents_monitor logging",
   "responsible": {
     "name": "BI Foundation Team",
     "email": "dl-bifoundation@dsb.dk"
   },
+  "maxParallelExecution": 3,
   "resumeBehavior": "NO_RESUME",
   "taskList": {
     "1": {

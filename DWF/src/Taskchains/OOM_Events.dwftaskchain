@@ -1,9 +1,10 @@
 {
-  "description": "Runs OOM Events Logging",
+  "description": "Runs agents_monitor logging",
   "responsible": {
     "name": "BI Foundation Team",
     "email": "dl-bifoundation@dsb.dk"
   },
+  "maxParallelExecution": 1,
   "resumeBehavior": "NO_RESUME",
   "taskList": {
     "1": {
