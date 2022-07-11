@@ -16,5 +16,11 @@
       "object": "DUMMY",
       "schema": "SYS"
     }
+  },
+  "DataWareHouse.Database.Synonyms::OBJECTS": {
+    "target": {
+      "object": "OBJECTS",
+      "schema": "SYS"
+    }
   }
 }
