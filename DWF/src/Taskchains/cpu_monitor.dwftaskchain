@@ -8,8 +8,15 @@
     },
     "2": {
       "inline": {
-        "type": "SUB",
-        "taskGroup": "com.sap.dwf.toe.executionControl"
+        "type": "executeProcedure",
+        "taskGroup": "hanaNative",
+        "description": "cpu_monitor",
+        "parameterValues": [
+          {
+            "id": "procName",
+            "value": "DataWareHouse.Database.Procedures::cpu_monitor"
+          }
+        ]
       },
       "preconditions": [
         {
