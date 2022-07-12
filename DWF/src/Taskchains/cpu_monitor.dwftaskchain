@@ -1,4 +1,10 @@
 {
+  "description": "Runs Cpu_Monitor",
+  "responsible": {
+    "name": "BI Foundation Team",
+    "email": "dl-bifoundation@dsb.dk"
+  },
+  "resumeBehavior": "NO_RESUME",
   "taskList": {
     "1": {
       "inline": {
