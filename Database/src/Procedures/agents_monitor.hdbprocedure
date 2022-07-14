@@ -57,7 +57,7 @@ SELECT DISTINCT
 		TOTAL_SWAP_SPACE_GB = :USED_SWAP_SPACE_GB + :FREE_SWAP_SPACE_GB;
 	
 	IF :AGENT_STATUS = 'CONNECTED'
-		THEN	LOG_LEVEL = 'INFO';
+		THEN	LOG_LEVEL = 'INFO'; -- If agent is not connected, send message as warning level to humio (Currently not used in humio to differ, but option is now there)
 	ELSE LOG_LEVEL = 'WARNING';
 	END IF;
 			CALL "DataWareHouse.Database.Synonyms::humio"(

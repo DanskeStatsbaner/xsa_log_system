@@ -191,7 +191,7 @@ ORDER BY
   PORT,
   CONN_ID;
   
-  
+ /* Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 SQL_SNAP =
 SELECT DISTINCT
 	"EXECUTION_ENGINE",
@@ -203,8 +203,8 @@ GROUP BY
 	"EXECUTION_ENGINE",
 	"SCHEMA_NAME",
 	"STATEMENT_HASH"
-;
-
+;*/
+/* Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 SQL_STAT=
 SELECT 
 A."SCHEMA_NAME", 
@@ -213,7 +213,7 @@ A."STATEMENT_HASH",
 B."STATEMENT_STRING"
 FROM :SQL_SNAP A
 INNER JOIN  "DataWareHouse.Database.Virtualtables::HOST_SQL_PLAN_CACHE" B ON (A."SNAPSHOT_ID" = B."SNAPSHOT_ID" AND A."STATEMENT_HASH" = B."STATEMENT_HASH")
-;
+;*/
 
 
 OOM_EVENTS_NO_STATEMENT = 
@@ -237,7 +237,7 @@ OOM_EVENTS_NO_STATEMENT =
 	IFNULL(SCHEMA_NAME, '-1') SCHEMA_NAME
   FROM :SAP_TABLE A
   LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH)
-  WHERE OOM_TIME > :LAST_RUN
+  WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
   GROUP BY
    HOST,
    A.STATEMENT_HASH,
@@ -264,21 +264,16 @@ OOM_EVENTS =
 	A.TRACEFILE_NAME,
 	A.EXECUTION_ENGINE,
 	A.SCHEMA_NAME
---	IFNULL(B.STATEMENT_STRING,'-1') STATEMENT_STRING
+--	IFNULL(B.STATEMENT_STRING,'-1') STATEMENT_STRING --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
   FROM :OOM_EVENTS_NO_STATEMENT A
- -- LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH)
+ -- LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
   ;
   
-  /*SELECT DISTINCT
-	CASE 
-		WHEN "HOST" = 'vssapnu001u' THEN 'DEV'
-		WHEN "HOST" = 'vssapnt001t'	THEN 'TEST'
-		WHEN "HOST" = 'vssapnp001p' THEN 'PRD'
-		END AS "Environment" INTO ENVIRONMENT
-		FROM :OOM_EVENTS;
-  */
-  
 
+/*
+Runs in all procedures containing humio ingestion.
+Finds the environment in which the procedure run, and change it into DEV, TEST, PROD for readability and uniformity
+*/
 SELECT DISTINCT
 	CASE 
 		WHEN "SYSTEM_ID" = 'NU0' THEN 'DEV'
@@ -287,7 +282,7 @@ SELECT DISTINCT
 		END AS "ENVIRONMENT" INTO ENVIRONMENT
 		FROM "DataWareHouse.Database.Virtualtables::M_DATABASE";
 
-
+--Creates a humio token to ingest into humio. Put here before the for loop to only create it once
   
   CALL "DataWareHouse.Database.Synonyms::token"(
 	APP => 'AP_HUMIO',
@@ -312,7 +307,7 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 		TRACEFILE_NAME = :OOM_EVENTS."TRACEFILE_NAME"[:k];
 		EXECUTION_ENGINE = :OOM_EVENTS."EXECUTION_ENGINE"[:k];
 		SCHEMA_NAME = :OOM_EVENTS."SCHEMA_NAME"[:k];
-	--	STATEMENT_STRING = :OOM_EVENTS."STATEMENT_STRING"[:k];
+	--	STATEMENT_STRING = :OOM_EVENTS."STATEMENT_STRING"[:k]; --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 			CALL "DataWareHouse.Database.Synonyms::humio"(
     MESSAGE => 'Native HANA system log',
     LOG_LEVEL => 'WARNING',
@@ -329,6 +324,7 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 	
 	END IF; 
   RUNTIME_END = CURRENT_TIMESTAMP;
+  /* Logs the procedure runs*/
 	INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
   
 END
