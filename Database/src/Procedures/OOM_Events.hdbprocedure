@@ -236,7 +236,7 @@ OOM_EVENTS_NO_STATEMENT =
 	IFNULL(EXECUTION_ENGINE, '-1') EXECUTION_ENGINE,
 	IFNULL(SCHEMA_NAME, '-1') SCHEMA_NAME
   FROM :SAP_TABLE A
-  LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH)
+ -- LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
   WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
   GROUP BY
    HOST,
