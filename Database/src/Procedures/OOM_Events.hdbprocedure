@@ -7,7 +7,7 @@ BEGIN
 DECLARE k, CONN_ID, NUM_OOMS Integer;
 DECLARE OOM_TIME,RUNTIME_START, RUNTIME_END, LAST_RUN Timestamp;
 DECLARE ingesttoken NVARCHAR(2500);
-DECLARE HOST, PORT, STATEMENT_HASH, TRACEFILE_NAME, EVENT_REASON,HANA_LOG_NAME, ENVIRONMENT,  WORKLOAD_CLASS_NAME, EXECUTION_ENGINE,  SCHEMA_NAME  NVARCHAR(250);
+DECLARE HOST, PORT, STATEMENT_HASH, TRACEFILE_NAME, EVENT_REASON,HANA_LOG_NAME, ENVIRONMENT,  WORKLOAD_CLASS_NAME, EXECUTION_ENGINE,  SCHEMA_NAME,USER_NAME, APPLICATION_NAME  NVARCHAR(250);
 DECLARE STATEMENT_STRING NCLOB;
 DECLARE HANA_LOG_COMMENT NVARCHAR(500) = '';
 DECLARE STATEMENT_ID Bigint;
@@ -163,8 +163,8 @@ FROM
     ( BI.CONN_ID = -1 OR OE.CONNECTION_ID = TO_VARCHAR(BI.CONN_ID) ) AND
     OE.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
     ( BI.STATEMENT_ID = -1 OR OE.STATEMENT_ID = BI.STATEMENT_ID ) AND
-    OE.EVENT_REASON LIKE BI.EVENT_REASON AND
-    OE.DATA_SOURCE LIKE BI.DATA_SOURCE
+    OE.EVENT_REASON LIKE BI.EVENT_REASON
+   -- COMMENTED FOR NU0 test to capture any event : REMOVE before deployment AND OE.DATA_SOURCE LIKE BI.DATA_SOURCE
   GROUP BY
     CASE 
       WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
@@ -191,7 +191,7 @@ ORDER BY
   PORT,
   CONN_ID;
   
- /* Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+ -- Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 SQL_SNAP =
 SELECT DISTINCT
 	"EXECUTION_ENGINE",
@@ -203,17 +203,19 @@ GROUP BY
 	"EXECUTION_ENGINE",
 	"SCHEMA_NAME",
 	"STATEMENT_HASH"
-;*/
-/* Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+;
+-- Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 SQL_STAT=
 SELECT 
 A."SCHEMA_NAME", 
 A."EXECUTION_ENGINE",
 A."STATEMENT_HASH",
-B."STATEMENT_STRING"
+--B."STATEMENT_STRING"
+B."USER_NAME", 
+B."APPLICATION_NAME"
 FROM :SQL_SNAP A
 INNER JOIN  "DataWareHouse.Database.Virtualtables::HOST_SQL_PLAN_CACHE" B ON (A."SNAPSHOT_ID" = B."SNAPSHOT_ID" AND A."STATEMENT_HASH" = B."STATEMENT_HASH")
-;*/
+;
 
 
 OOM_EVENTS_NO_STATEMENT = 
@@ -234,10 +236,12 @@ OOM_EVENTS_NO_STATEMENT =
 	ELSE MAX(TRACEFILE_NAME) 
 	END AS TRACEFILE_NAME,
 	IFNULL(EXECUTION_ENGINE, '-1') EXECUTION_ENGINE,
-	IFNULL(SCHEMA_NAME, '-1') SCHEMA_NAME
+	IFNULL(SCHEMA_NAME, '-1') SCHEMA_NAME,
+	B."USER_NAME", 
+	B."APPLICATION_NAME"
   FROM :SAP_TABLE A
- -- LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
-  WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
+  LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+  --COMMENTED FOR NU0 test only --- REMOVE before eployment --WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
   GROUP BY
    HOST,
    A.STATEMENT_HASH,
@@ -245,7 +249,9 @@ OOM_EVENTS_NO_STATEMENT =
    EVENT_REASON,
    WORKLOAD_CLASS_NAME,
    EXECUTION_ENGINE,
-   SCHEMA_NAME
+   SCHEMA_NAME,
+   B."USER_NAME", 
+   B."APPLICATION_NAME"
    ;
   
 
@@ -263,7 +269,9 @@ OOM_EVENTS =
 	A.WORKLOAD_CLASS_NAME,
 	A.TRACEFILE_NAME,
 	A.EXECUTION_ENGINE,
-	A.SCHEMA_NAME
+	A.SCHEMA_NAME,
+	A."USER_NAME", 
+	A."APPLICATION_NAME"
 --	IFNULL(B.STATEMENT_STRING,'-1') STATEMENT_STRING --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
   FROM :OOM_EVENTS_NO_STATEMENT A
  -- LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
@@ -307,6 +315,8 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 		TRACEFILE_NAME = :OOM_EVENTS."TRACEFILE_NAME"[:k];
 		EXECUTION_ENGINE = :OOM_EVENTS."EXECUTION_ENGINE"[:k];
 		SCHEMA_NAME = :OOM_EVENTS."SCHEMA_NAME"[:k];
+		USER_NAME = :OOM_EVENTS."USER_NAME"[:k];
+		APPLICATION_NAME = :OOM_EVENTS."APPLICATION_NAME"[:k];
 	--	STATEMENT_STRING = :OOM_EVENTS."STATEMENT_STRING"[:k]; --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 			CALL "DataWareHouse.Database.Synonyms::humio"(
     MESSAGE => 'Native HANA system log',
@@ -315,7 +325,7 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
     SRC => 'OOM_Events.hdbprocedure',
        ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
        || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
-       || '", "EXECUTION_ENGINE":"' || :EXECUTION_ENGINE || '", "SCHEMA_NAME":"' || :SCHEMA_NAME --|| '", "STATEMENT_STRING":"' || :STATEMENT_STRING
+       || '", "EXECUTION_ENGINE":"' || :EXECUTION_ENGINE || '", "SCHEMA_NAME":"' || :SCHEMA_NAME || '", "USER_NAME":"' || :USER_NAME || '", APPLICATION_NAME":"' || :APPLICATION_NAME --|| '", "STATEMENT_STRING":"' || :STATEMENT_STRING
        ||'"',
     JWT => :ingesttoken,
     EXCEPTION_ON_ERROR => 1
