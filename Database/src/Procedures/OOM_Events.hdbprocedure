@@ -8,7 +8,8 @@ DECLARE k, CONN_ID, NUM_OOMS Integer;
 DECLARE OOM_TIME,RUNTIME_START, RUNTIME_END, LAST_RUN Timestamp;
 DECLARE ingesttoken NVARCHAR(2500);
 DECLARE HOST, PORT, STATEMENT_HASH, TRACEFILE_NAME, EVENT_REASON,HANA_LOG_NAME, ENVIRONMENT,  WORKLOAD_CLASS_NAME, EXECUTION_ENGINE,  SCHEMA_NAME,USER_NAME, APPLICATION_NAME  NVARCHAR(250);
-DECLARE STATEMENT_STRING NCLOB;
+DECLARE STATEMENT_STRING_LEFT NVARCHAR(3000);
+DECLARE STATEMENT_STRING_RIGHT NVARCHAR(3000);
 DECLARE HANA_LOG_COMMENT NVARCHAR(500) = '';
 DECLARE STATEMENT_ID Bigint;
 DECLARE MEM_REQ_GB, MEM_USED_GB, MEM_LIMIT_GB DECIMAL (10,2);
@@ -210,7 +211,7 @@ SELECT
 A."SCHEMA_NAME", 
 A."EXECUTION_ENGINE",
 A."STATEMENT_HASH",
---B."STATEMENT_STRING"
+B."STATEMENT_STRING",
 B."USER_NAME", 
 B."APPLICATION_NAME"
 FROM :SQL_SNAP A
@@ -239,6 +240,7 @@ OOM_EVENTS_NO_STATEMENT =
 	IFNULL(SCHEMA_NAME, '-1') SCHEMA_NAME,
 	B."USER_NAME", 
 	B."APPLICATION_NAME"
+--	B."STATEMENT_STRING"
   FROM :SAP_TABLE A
   LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
   --COMMENTED FOR NU0 test only --- REMOVE before eployment --WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
@@ -252,6 +254,7 @@ OOM_EVENTS_NO_STATEMENT =
    SCHEMA_NAME,
    B."USER_NAME", 
    B."APPLICATION_NAME"
+  -- B."STATEMENT_STRING"
    ;
   
 
@@ -271,10 +274,20 @@ OOM_EVENTS =
 	A.EXECUTION_ENGINE,
 	A.SCHEMA_NAME,
 	A."USER_NAME", 
-	A."APPLICATION_NAME"
---	IFNULL(B.STATEMENT_STRING,'-1') STATEMENT_STRING --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+	A."APPLICATION_NAME",
+--	IFNULL(B.STATEMENT_STRING,'-1') RIGHT(STATEMENT_STRING) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues. It is 5000 for entire message (all columns).. so it is max 2000 for STATEMENT_STRING
+	CASE 
+		WHEN LENGTH(B."STATEMENT_STRING") > 2000 THEN REPLACE_REGEXPR('([^0-9A-Za-z_ ])' IN (LEFT(B."STATEMENT_STRING",1000) || '...' || RIGHT(B."STATEMENT_STRING",1000)) WITH ' ' OCCURRENCE ALL) ELSE REPLACE_REGEXPR('([^0-9A-Za-z_ ])' IN B."STATEMENT_STRING" WITH ' ' OCCURRENCE ALL)
+	end as "STATEMENT_STRING_LEFT"
+--	CASE 
+--		WHEN LENGTH(B."STATEMENT_STRING") > 2000 THEN REPLACE_REGEXPR('([^0-9A-Za-z_ ])' IN RIGHT(B."STATEMENT_STRING",2000) WITH '#' OCCURRENCE ALL) ELSE REPLACE_REGEXPR('([^0-9A-Za-z_ ])' IN B."STATEMENT_STRING" WITH '#' OCCURRENCE ALL)
+--	end as "STATEMENT_STRING_RIGHT"
+
+	  --REPLACE_REGEXPR('([^0-9A-Za-z_ ])' IN LEFT(B."STATEMENT_STRING",2000) WITH '#' OCCURRENCE ALL) "STATEMENT_STRING"
+	  -- 2000 chars is OK
+
   FROM :OOM_EVENTS_NO_STATEMENT A
- -- LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+  LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
   ;
   
 
@@ -317,7 +330,8 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 		SCHEMA_NAME = :OOM_EVENTS."SCHEMA_NAME"[:k];
 		USER_NAME = :OOM_EVENTS."USER_NAME"[:k];
 		APPLICATION_NAME = :OOM_EVENTS."APPLICATION_NAME"[:k];
-	--	STATEMENT_STRING = :OOM_EVENTS."STATEMENT_STRING"[:k]; --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+		STATEMENT_STRING_LEFT = :OOM_EVENTS."STATEMENT_STRING_LEFT"[:k]; --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+	--	STATEMENT_STRING_RIGHT = :OOM_EVENTS."STATEMENT_STRING_RIGHT"[:k];
 			CALL "DataWareHouse.Database.Synonyms::humio"(
     MESSAGE => 'Native HANA system log',
     LOG_LEVEL => 'WARNING',
@@ -325,7 +339,7 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
     SRC => 'OOM_Events.hdbprocedure',
        ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
        || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
-       || '", "EXECUTION_ENGINE":"' || :EXECUTION_ENGINE || '", "SCHEMA_NAME":"' || :SCHEMA_NAME || '", "USER_NAME":"' || :USER_NAME || '", APPLICATION_NAME":"' || :APPLICATION_NAME --|| '", "STATEMENT_STRING":"' || :STATEMENT_STRING
+       || '", "EXECUTION_ENGINE":"' || :EXECUTION_ENGINE || '", "SCHEMA_NAME":"' || :SCHEMA_NAME || '", "USER_NAME":"' || :USER_NAME || '", "APPLICATION_NAME":"' || :APPLICATION_NAME || '", "STATEMENT_STRING_LEFT":"' || :STATEMENT_STRING_LEFT --||'", "STATEMENT_STRING_RIGHT":"' || :STATEMENT_STRING_RIGHT
        ||'"',
     JWT => :ingesttoken,
     EXCEPTION_ON_ERROR => 1
