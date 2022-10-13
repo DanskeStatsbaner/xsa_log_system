@@ -165,7 +165,8 @@ FROM
     OE.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
     ( BI.STATEMENT_ID = -1 OR OE.STATEMENT_ID = BI.STATEMENT_ID ) AND
     OE.EVENT_REASON LIKE BI.EVENT_REASON
-   -- COMMENTED FOR NU0 test to capture any event : REMOVE before deployment AND OE.DATA_SOURCE LIKE BI.DATA_SOURCE
+   -- !! below line !! COMMENTED FOR NU0 test to capture any event : REMOVE before deployment 
+   AND OE.DATA_SOURCE LIKE BI.DATA_SOURCE
   GROUP BY
     CASE 
       WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
@@ -243,7 +244,8 @@ OOM_EVENTS_NO_STATEMENT =
 --	B."STATEMENT_STRING"
   FROM :SAP_TABLE A
   LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
-  --COMMENTED FOR NU0 test only --- REMOVE before eployment --WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
+  ---- !! below line !!  COMMENTED FOR NU0 test only --- REMOVE before eployment --
+  WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
   GROUP BY
    HOST,
    A.STATEMENT_HASH,
