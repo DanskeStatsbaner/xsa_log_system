@@ -1,7 +1,7 @@
-PROCEDURE "DataWareHouse.Database.Procedures::OOM_Events"(
+PROCEDURE "DataWareHouse.Database.Procedures::OOM_Events_debug"(
 --===========================
 --for DEBUG session only START
-	/*OUT out_debug  table ( 
+	OUT out_debug  table ( 
                     	STATEMENT_HASH NVARCHAR(250),
                     	OOM_TIME TIMESTAMP,
                     	STATEMENT_ID NVARCHAR(250),
@@ -12,7 +12,7 @@ PROCEDURE "DataWareHouse.Database.Procedures::OOM_Events"(
 						APPLICATION_NAME  NVARCHAR(250),
 						ACCESSED_OBJECT_NAMES NVARCHAR(2500),
 						FIRST_FROM NVARCHAR(2500)
-	)*/
+	)
 --for DEBUG session only END
 --===========================
 )
@@ -25,14 +25,6 @@ Release updates 10.2022, @Marek Janczura
 2. The HOST table is restricted based on LAST_RUN
 3. The HOST table is added at the end with JOIN on HASH and Server Timestamp
 4. The new columns are added with the corresponding cleaning / reformatting
-==-------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------
-Release updates 11.2022, @Marek Janczura
-
-1. The SAP_TABLE is switched from  'HISTORY' DATA_SOURCE to  'CURRENT' as DATA_SOURCE,
-2. The HOST table is replaced with the new table M_SQL_PLAN_CACHE
-3. The logic has been adapted for new table, where the key is  "STATEMENT_HASH","PLAN_ID"
-NOTE:  From M_SQL_PLAN_CACHE the latest "PLAN_ID" is taken - to be able to join with M_OUT_OF_MEMORY_EVENTS
 ==-------------------------------------------------------------------------------------------
 */
 
@@ -58,10 +50,12 @@ DECLARE MEM_REQ_GB, MEM_USED_GB, MEM_LIMIT_GB DECIMAL (10,2);
 
 RUNTIME_START = CURRENT_TIMESTAMP;
 HANA_LOG_NAME ='OOM_Events';
----- COMMENT FOR DEBUGGIER: 
-SELECT IFNULL(MAX("RUNTIME_START"),'2022-01-01 00:00:00') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.procedure_run";
---LAST_RUN = '2022-11-09 00:59:54.514000000';--for DEBUG session only END
+---- COMMENT FOR DEBUGGIER: SELECT IFNULL(MAX("RUNTIME_START"),'2022-01-01 00:00:00') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.procedure_run";
+LAST_RUN = '2022-11-07 10:59:54.514000000';--for DEBUG session only END
 		
+
+
+
 SAP_TABLE = SELECT
   OOM_TIME,
   HOST,
@@ -159,7 +153,7 @@ FROM
         '%' STATEMENT_HASH,
         -1 STATEMENT_ID,
         '%' EVENT_REASON,
-        'CURRENT' DATA_SOURCE,
+        'HISTORY' DATA_SOURCE,
         'NONE' AGGREGATE_BY,         /* TIME, HOST, PORT, CONN_ID, HASH, REASON or comma separated combinations, NONE for no aggregation */
         'NONE' TIME_AGGREGATE_BY     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
       FROM
@@ -239,28 +233,55 @@ ORDER BY
   PORT,
   CONN_ID;
   
--- Select only the necessary statement_hash to be able later JOIN this with OOM view
-SQL_SNAP =
-SELECT	"STATEMENT_HASH",
-	MAX("PLAN_ID") AS "PLAN_ID" -- this is to take only the last statement_hash based on the plan_id
-FROM "DataWareHouse.Database.Virtualtables::M_SQL_PLAN_CACHE" 
-WHERE "STATEMENT_HASH" IN (SELECT DISTINCT "STATEMENT_HASH" FROM :SAP_TABLE)
+ -- Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+/*SQL_SNAP =
+SELECT DISTINCT
+	"EXECUTION_ENGINE",
+	"SCHEMA_NAME",
+	"STATEMENT_HASH",
+	MAX("SNAPSHOT_ID") AS "SNAPSHOT_ID" -- this is to take only the last snapshot for the give pair of Execution Engine, Schena. statement_hash
+FROM "DataWareHouse.Database.Virtualtables::HOST_SQL_PLAN_CACHE" WHERE "STATEMENT_HASH" IN (SELECT DISTINCT "STATEMENT_HASH" FROM :SAP_TABLE)
 GROUP BY
-	"STATEMENT_HASH";
-
---For restricted statement_hash get all remaiing columns
+	"EXECUTION_ENGINE",
+	"SCHEMA_NAME",
+	"STATEMENT_HASH"
+;
+-- Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 SQL_STAT=
 SELECT 
-	B."STATEMENT_HASH",
-	B."USER_NAME", 
-	B."APPLICATION_NAME", 
-	B."ACCESSED_OBJECT_NAMES",
-	B."STATEMENT_STRING"
+A."SCHEMA_NAME", 
+A."EXECUTION_ENGINE",
+A."STATEMENT_HASH",
+--B."STATEMENT_STRING",
+B."USER_NAME", 
+B."APPLICATION_NAME"
 FROM :SQL_SNAP A
-INNER JOIN "DataWareHouse.Database.Virtualtables::M_SQL_PLAN_CACHE" B ON (A."STATEMENT_HASH" = B."STATEMENT_HASH" AND A."PLAN_ID" = B."PLAN_ID")
+INNER JOIN  "DataWareHouse.Database.Virtualtables::HOST_SQL_PLAN_CACHE" B ON (A."SNAPSHOT_ID" = B."SNAPSHOT_ID" AND A."STATEMENT_HASH" = B."STATEMENT_HASH")
+;*/
+
+--===============================
+--The above SQL_STAT is performing bad due to JOIN with entire HOST_SQL_PLAN_CACHE table.
+--The below HASH table is restricted based on LAST_RUN
+--===============================
+SQL_STAT=
+SELECT 
+--"EXECUTION_ENGINE",
+"SCHEMA_NAME", 
+--MAX("SNAPSHOT_ID") AS "SNAPSHOT_ID",
+"SNAPSHOT_ID",
+"STATEMENT_HASH",
+"SERVER_TIMESTAMP",
+"USER_NAME", 
+"APPLICATION_NAME",
+"ACCESSED_OBJECT_NAMES",
+"STATEMENT_STRING"
+FROM "DataWareHouse.Database.Virtualtables::HOST_SQL_PLAN_CACHE"
+WHERE --"SERVER_TIMESTAMP" > :LAST_RUN
+"SERVER_TIMESTAMP" > '2022-11-07 11:54:17.954000000'
+AND  "STATEMENT_HASH" IN (SELECT DISTINCT "STATEMENT_HASH" FROM :SAP_TABLE)--'2022-10-19 00:00:00.000000000' - restrict the HOST_* table to the content with recent snapshots. OOM has different timestamp, but we should not look prior to that.
+--GROUP BY "SCHEMA_NAME", "STATEMENT_HASH","SERVER_TIMESTAMP","USER_NAME", "APPLICATION_NAME"
 ;
 
--- Prepare data from OOM table
 OOM_EVENTS_NO_STATEMENT = 
 	SELECT DISTINCT
     MIN(OOM_TIME) OOM_TIME,
@@ -277,10 +298,10 @@ OOM_EVENTS_NO_STATEMENT =
 	END AS WORKLOAD_CLASS_NAME,
 	CASE WHEN LENGTH(MAX(TRACEFILE_NAME)) < 1 THEN '-1'
 	ELSE MAX(TRACEFILE_NAME) 
-	END AS TRACEFILE_NAME
---	IFNULL(EXECUTION_ENGINE, '-1') EXECUTION_ENGINE,
---	IFNULL(SCHEMA_NAME, '-1') SCHEMA_NAME,
---	SERVER_TIMESTAMP
+	END AS TRACEFILE_NAME,
+	IFNULL(EXECUTION_ENGINE, '-1') EXECUTION_ENGINE,
+	IFNULL(SCHEMA_NAME, '-1') SCHEMA_NAME,
+	SERVER_TIMESTAMP
   FROM :SAP_TABLE A
  --NOW LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
   WHERE OOM_TIME > :LAST_RUN --Only find new OOM's since last run
@@ -289,10 +310,10 @@ OOM_EVENTS_NO_STATEMENT =
    A.STATEMENT_HASH,
    STATEMENT_ID,
    EVENT_REASON,
-   WORKLOAD_CLASS_NAME
---   EXECUTION_ENGINE,
---   SCHEMA_NAME,
---   SERVER_TIMESTAMP
+   WORKLOAD_CLASS_NAME,
+   EXECUTION_ENGINE,
+   SCHEMA_NAME,
+   SERVER_TIMESTAMP
    ;
   
 									
@@ -310,10 +331,10 @@ OOM_EVENTS =
 	A.EVENT_REASON,
 	A.WORKLOAD_CLASS_NAME,
 	A.TRACEFILE_NAME,
---	A.EXECUTION_ENGINE,
---	A.SCHEMA_NAME,
---	A.SERVER_TIMESTAMP SERVER_TIMESTAMP1,
-	--B.SERVER_TIMESTAMP SERVER_TIMESTAMP2,
+	A.EXECUTION_ENGINE,
+	A.SCHEMA_NAME,
+	A.SERVER_TIMESTAMP SERVER_TIMESTAMP1,
+	B.SERVER_TIMESTAMP SERVER_TIMESTAMP2,
 	IFNULL(B."USER_NAME", '-1') "USER_NAME", 
 	IFNULL(B."APPLICATION_NAME", '-1') "APPLICATION_NAME",
 	-- Clean ACCESSED_OBJECTS from illegal characters and restrict to 2000 chars
@@ -330,7 +351,7 @@ OOM_EVENTS =
 	
 	FROM :OOM_EVENTS_NO_STATEMENT A
 	LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
-	--skipped for new table ..AND abs(SECONDS_BETWEEN(B.SERVER_TIMESTAMP, A.SERVER_TIMESTAMP)) <= 60 --Identify nearest logs from both tables
+	AND abs(SECONDS_BETWEEN(B.SERVER_TIMESTAMP, A.SERVER_TIMESTAMP)) <= 60 --Identify nearest logs from both tables
   ;
 
   
@@ -349,16 +370,16 @@ SELECT DISTINCT
 
 --Creates a humio token to ingest into humio. Put here before the for loop to only create it once
 --COMMENT FOR DEBUGGER  
-  CALL "DataWareHouse.Database.Synonyms::token"(
+/*  CALL "DataWareHouse.Database.Synonyms::token"(
 	APP => 'AP_HUMIO',
 	EXCEPTION_ON_ERROR => 1,
 	JWT => ingesttoken
-);
+);*/
 
 
 --===========================	
 --for DEBUG session only START
-/*out_debug = 
+out_debug = 
   SELECT 
 	STATEMENT_HASH,
 	OOM_TIME,
@@ -373,10 +394,11 @@ SELECT DISTINCT
 		ELSE "ACCESSED_OBJECT_NAMES"
 	end as "ACCESSED_OBJECT_NAMES",
 	SUBSTR_REGEXPR('(?i)from\s+\S+|JOIN\s+\S+' IN "STATEMENT_STRING" OCCURRENCE 1) "FIRST_FROM"
-  FROM :OOM_EVENTS;*/
+  FROM :OOM_EVENTS;
 --for DEBUG session only END
 --===========================
 
+/*
 IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 		FOR k IN 1..RECORD_COUNT(:OOM_EVENTS) DO 
 		--FOR k IN 10..10 DO 
@@ -391,8 +413,8 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 		EVENT_REASON = :OOM_EVENTS."EVENT_REASON"[:k];
 		WORKLOAD_CLASS_NAME = :OOM_EVENTS."WORKLOAD_CLASS_NAME"[:k];
 		TRACEFILE_NAME = :OOM_EVENTS."TRACEFILE_NAME"[:k];
-	--	EXECUTION_ENGINE = :OOM_EVENTS."EXECUTION_ENGINE"[:k];
-	--	SCHEMA_NAME = :OOM_EVENTS."SCHEMA_NAME"[:k];
+		EXECUTION_ENGINE = :OOM_EVENTS."EXECUTION_ENGINE"[:k];
+		SCHEMA_NAME = :OOM_EVENTS."SCHEMA_NAME"[:k];
 		USER_NAME = :OOM_EVENTS."USER_NAME"[:k];
 		APPLICATION_NAME = :OOM_EVENTS."APPLICATION_NAME"[:k];
 		ACCESSED_OBJECT_NAMES = :OOM_EVENTS."ACCESSED_OBJECT_NAMES"[:k];
@@ -401,10 +423,10 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
     MESSAGE => 'Native HANA system log',
     LOG_LEVEL => 'WARNING',
     HOST => 'HANA',
-    SRC => 'OOM_Events.hdbprocedure',
+    SRC => 'OOM_Events_test_new.hdbprocedure',
        ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
        || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
-       || '", "USER_NAME":"' || :USER_NAME || '", "APPLICATION_NAME":"' || :APPLICATION_NAME || '", "ACCESSED_OBJECT_NAMES":"' || :ACCESSED_OBJECT_NAMES || '", "FIRST_FROM":"' || :FIRST_FROM
+       || '", "EXECUTION_ENGINE":"' || :EXECUTION_ENGINE || '", "SCHEMA_NAME":"' || :SCHEMA_NAME || '", "USER_NAME":"' || :USER_NAME || '", "APPLICATION_NAME":"' || :APPLICATION_NAME || '", "ACCESSED_OBJECT_NAMES":"' || :ACCESSED_OBJECT_NAMES || '", "FIRST_FROM":"' || :FIRST_FROM
        ||'"',
     JWT => :ingesttoken,
     EXCEPTION_ON_ERROR => 1
@@ -413,9 +435,9 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 		END FOR;
 	
 	END IF; 
-  RUNTIME_END = CURRENT_TIMESTAMP;
+  RUNTIME_END = CURRENT_TIMESTAMP;*/
   /* Logs the procedure runs*/
 -- COMMENT FOR DEBUGGIER:	
-INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
+--INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
   
 END

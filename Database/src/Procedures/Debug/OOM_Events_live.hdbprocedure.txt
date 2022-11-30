@@ -1,4 +1,4 @@
-PROCEDURE "DataWareHouse.Database.Procedures::OOM_Events"(
+PROCEDURE "DataWareHouse.Database.Procedures.Debug::OOM_Events_live"(
 --===========================
 --for DEBUG session only START
 	/*OUT out_debug  table ( 
@@ -25,14 +25,6 @@ Release updates 10.2022, @Marek Janczura
 2. The HOST table is restricted based on LAST_RUN
 3. The HOST table is added at the end with JOIN on HASH and Server Timestamp
 4. The new columns are added with the corresponding cleaning / reformatting
-==-------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------
-Release updates 11.2022, @Marek Janczura
-
-1. The SAP_TABLE is switched from  'HISTORY' DATA_SOURCE to  'CURRENT' as DATA_SOURCE,
-2. The HOST table is replaced with the new table M_SQL_PLAN_CACHE
-3. The logic has been adapted for new table, where the key is  "STATEMENT_HASH","PLAN_ID"
-NOTE:  From M_SQL_PLAN_CACHE the latest "PLAN_ID" is taken - to be able to join with M_OUT_OF_MEMORY_EVENTS
 ==-------------------------------------------------------------------------------------------
 */
 
@@ -62,6 +54,9 @@ HANA_LOG_NAME ='OOM_Events';
 SELECT IFNULL(MAX("RUNTIME_START"),'2022-01-01 00:00:00') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.procedure_run";
 --LAST_RUN = '2022-11-09 00:59:54.514000000';--for DEBUG session only END
 		
+
+
+
 SAP_TABLE = SELECT
   OOM_TIME,
   HOST,
@@ -239,6 +234,37 @@ ORDER BY
   PORT,
   CONN_ID;
   
+ -- Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+/*SQL_SNAP =
+SELECT DISTINCT
+	"EXECUTION_ENGINE",
+	"SCHEMA_NAME",
+	"STATEMENT_HASH",
+	MAX("SNAPSHOT_ID") AS "SNAPSHOT_ID" -- this is to take only the last snapshot for the give pair of Execution Engine, Schena. statement_hash
+FROM "DataWareHouse.Database.Virtualtables::HOST_SQL_PLAN_CACHE" WHERE "STATEMENT_HASH" IN (SELECT DISTINCT "STATEMENT_HASH" FROM :SAP_TABLE)
+GROUP BY
+	"EXECUTION_ENGINE",
+	"SCHEMA_NAME",
+	"STATEMENT_HASH"
+;
+-- Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
+SQL_STAT=
+SELECT 
+A."SCHEMA_NAME", 
+A."EXECUTION_ENGINE",
+A."STATEMENT_HASH",
+--B."STATEMENT_STRING",
+B."USER_NAME", 
+B."APPLICATION_NAME"
+FROM :SQL_SNAP A
+INNER JOIN  "DataWareHouse.Database.Virtualtables::HOST_SQL_PLAN_CACHE" B ON (A."SNAPSHOT_ID" = B."SNAPSHOT_ID" AND A."STATEMENT_HASH" = B."STATEMENT_HASH")
+;*/
+
+--===============================
+--The above SQL_STAT is performing bad due to JOIN with entire HOST_SQL_PLAN_CACHE table.
+--The below HASH table is restricted based on LAST_RUN
+--===============================
+
 -- Select only the necessary statement_hash to be able later JOIN this with OOM view
 SQL_SNAP =
 SELECT	"STATEMENT_HASH",
@@ -401,7 +427,7 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
     MESSAGE => 'Native HANA system log',
     LOG_LEVEL => 'WARNING',
     HOST => 'HANA',
-    SRC => 'OOM_Events.hdbprocedure',
+    SRC => 'OOM_Events_live.hdbprocedure',
        ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
        || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
        || '", "USER_NAME":"' || :USER_NAME || '", "APPLICATION_NAME":"' || :APPLICATION_NAME || '", "ACCESSED_OBJECT_NAMES":"' || :ACCESSED_OBJECT_NAMES || '", "FIRST_FROM":"' || :FIRST_FROM
