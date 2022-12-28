@@ -13,6 +13,16 @@ context log {
         COMMENT : String(1024);
             
     };
+    
+    entity event_processing {
+        
+        key STATEMENT_HASH	: String(250);
+        key OOM_TIME    	: UTCTimestamp not null;
+        RUNTIME				: UTCTimestamp not null; /*time of the rocedure execution*/
+        NUM_OOMS			: Integer;
+        COMMENT 			: String(1024);
+            
+    };
 
   
 

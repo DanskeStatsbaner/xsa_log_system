@@ -34,6 +34,14 @@ Release updates 11.2022, @Marek Janczura
 3. The logic has been adapted for new table, where the key is  "STATEMENT_HASH","PLAN_ID"
 NOTE:  From M_SQL_PLAN_CACHE the latest "PLAN_ID" is taken - to be able to join with M_OUT_OF_MEMORY_EVENTS
 ==-------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+Release updates 12.2022, @Marek Janczura, DAT5-2575
+Problem: In case of taskchain failures, the process sends to humio all correct records, but does not register this fact into HANA log table.
+Description: Change the logic to be able to track logs correctly also in case of errors. 
+1. Additional table for events log added
+2. Record log for every event
+3. For next run use OOM_EVENT from new table
+==-------------------------------------------------------------------------------------------
 */
 
 LANGUAGE SQLSCRIPT
@@ -55,12 +63,16 @@ DECLARE FIRST_FROM NVARCHAR(2500);
 DECLARE HANA_LOG_COMMENT NVARCHAR(500) = '';
 DECLARE STATEMENT_ID Bigint;
 DECLARE MEM_REQ_GB, MEM_USED_GB, MEM_LIMIT_GB DECIMAL (10,2);
-
+/*DECLARE EXIT HANDLER FOR SQLEXCEPTION
+       SELECT ::SQL_ERROR_CODE, ::SQL_ERROR_MESSAGE FROM "DataWareHouse.Database.Synonyms::DUMMY";
+*/
 RUNTIME_START = CURRENT_TIMESTAMP;
 HANA_LOG_NAME ='OOM_Events';
 ---- COMMENT FOR DEBUGGIER: 
-SELECT IFNULL(MAX("RUNTIME_START"),'2022-01-01 00:00:00') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.procedure_run";
---LAST_RUN = '2022-11-09 00:59:54.514000000';--for DEBUG session only END
+--SELECT IFNULL(MAX("RUNTIME_START"),'2022-01-01 00:00:00') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.procedure_run";
+--LAST_RUN = '2022-12-19 00:59:54.514000000';--for DEBUG session only END
+SELECT IFNULL(MAX("OOM_TIME"),'2022-12-19 00:59:54.514000000') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.event_processing";--read OOM_TIME from the last even that has been correctly sent to humio
+
 		
 SAP_TABLE = SELECT
   OOM_TIME,
@@ -331,6 +343,7 @@ OOM_EVENTS =
 	FROM :OOM_EVENTS_NO_STATEMENT A
 	LEFT JOIN  :SQL_STAT B ON (A.STATEMENT_HASH = B.STATEMENT_HASH) --Can be used if sql statement needs to be attached to the oom message. Has been omitted for now to not fill up the log with huge statements and to avoid > nvarchar(5000) and lob issues
 	--skipped for new table ..AND abs(SECONDS_BETWEEN(B.SERVER_TIMESTAMP, A.SERVER_TIMESTAMP)) <= 60 --Identify nearest logs from both tables
+  ORDER BY A.OOM_TIME ASC
   ;
 
   
@@ -377,9 +390,12 @@ SELECT DISTINCT
 --for DEBUG session only END
 --===========================
 
+
+
+
 IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
-		FOR k IN 1..RECORD_COUNT(:OOM_EVENTS) DO 
-		--FOR k IN 10..10 DO 
+		--FOR k IN 1..RECORD_COUNT(:OOM_EVENTS) DO 
+		FOR k IN 1..11 DO 
 		OOM_TIME = :OOM_EVENTS."OOM_TIME"[:k];
 		HOST = :OOM_EVENTS."HOST"[:k];
 		STATEMENT_HASH = :OOM_EVENTS."STATEMENT_HASH"[:k];
@@ -400,6 +416,12 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 				ACCESSED_OBJECT_NAMES = '-1';
 		ELSE	ACCESSED_OBJECT_NAMES = :OOM_EVENTS."ACCESSED_OBJECT_NAMES"[:k];
 		END IF;
+		--for test START
+		--IF STATEMENT_HASH = 'de2dcd051979e4d9d043c3eba5d35ff8' THEN
+		--		ACCESSED_OBJECT_NAMES = NULL;
+		--END IF;
+		--for test END
+		
 		
 		--FIRST_FROM = :OOM_EVENTS."FIRST_FROM"[:k];
 		IF :OOM_EVENTS."FIRST_FROM"[:k] is NULL THEN --solve in case REGEX is null
@@ -407,24 +429,30 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 		ELSE	FIRST_FROM = :OOM_EVENTS."FIRST_FROM"[:k];
 		END IF;
 			CALL "DataWareHouse.Database.Synonyms::humio"(
-    MESSAGE => 'Native HANA system log',
-    LOG_LEVEL => 'WARNING',
-    HOST => 'HANA',
-    SRC => 'OOM_Events.hdbprocedure',
-       ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
-       || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
-       || '", "USER_NAME":"' || :USER_NAME || '", "APPLICATION_NAME":"' || :APPLICATION_NAME || '", "ACCESSED_OBJECT_NAMES":"' || :ACCESSED_OBJECT_NAMES || '", "FIRST_FROM":"' || :FIRST_FROM
-       ||'"',
-    JWT => :ingesttoken,
-    EXCEPTION_ON_ERROR => 1
-);
-
+			    MESSAGE => 'Native HANA system log',
+			    LOG_LEVEL => 'WARNING',
+			    HOST => 'HANA',
+			    SRC => 'OOM_Events_TEST2.hdbprocedure',
+			       ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
+			       || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
+			       || '", "USER_NAME":"' || :USER_NAME || '", "APPLICATION_NAME":"' || :APPLICATION_NAME || '", "ACCESSED_OBJECT_NAMES":"' || :ACCESSED_OBJECT_NAMES || '", "FIRST_FROM":"' || :FIRST_FROM
+			       ||'"',
+			    JWT => :ingesttoken,
+			    EXCEPTION_ON_ERROR => 1
+			);
+			-- Event has been sent correctly to humio.
+			INSERT INTO "DataWareHouse.Database.Tables::log.event_processing"("STATEMENT_HASH", "OOM_TIME", "RUNTIME", "NUM_OOMS", "COMMENT")  VALUES(:STATEMENT_HASH, :OOM_TIME, CURRENT_TIMESTAMP, :NUM_OOMS, 'Sent to humio');
+			COMMIT;-- to be sure the above log is written even if for some of the record humio return en ERROR. Without commit HANA perform rollback of all DB updates.
 		END FOR;
 	
-	END IF; 
+	END IF;
+	
+
+	
+	
   RUNTIME_END = CURRENT_TIMESTAMP;
   /* Logs the procedure runs*/
 -- COMMENT FOR DEBUGGIER:	
-INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
+-- INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
   
 END
