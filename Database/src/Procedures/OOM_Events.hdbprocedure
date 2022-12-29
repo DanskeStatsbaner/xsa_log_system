@@ -432,7 +432,7 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
 			    MESSAGE => 'Native HANA system log',
 			    LOG_LEVEL => 'WARNING',
 			    HOST => 'HANA',
-			    SRC => 'OOM_Events_TEST2.hdbprocedure',
+			    SRC => 'OOM_Events.hdbprocedure',
 			       ATTRIBUTES => '"ENVIRONMENT":"' || :ENVIRONMENT || '", "OOM_TIME":"' || :OOM_TIME || '", "HOST":"' || :HOST || '", "STATEMENT_HASH":"' || :STATEMENT_HASH || '", "STATEMENT_ID":"' || :STATEMENT_ID  || '", "NUM_OOMS":"' || :NUM_OOMS 
 			       || '", "MEM_REQ_GB":"' || :MEM_REQ_GB || '", "MEM_USED_GB":"' || :MEM_USED_GB ||  '", "MEM_LIMIT_GB":"' || :MEM_LIMIT_GB || '", "EVENT_REASON":"' || :EVENT_REASON || '", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME || '", "TRACEFILE_NAME":"' || :TRACEFILE_NAME 
 			       || '", "USER_NAME":"' || :USER_NAME || '", "APPLICATION_NAME":"' || :APPLICATION_NAME || '", "ACCESSED_OBJECT_NAMES":"' || :ACCESSED_OBJECT_NAMES || '", "FIRST_FROM":"' || :FIRST_FROM
@@ -453,6 +453,6 @@ IF RECORD_COUNT(:OOM_EVENTS) >= 1 THEN
   RUNTIME_END = CURRENT_TIMESTAMP;
   /* Logs the procedure runs*/
 -- COMMENT FOR DEBUGGIER:	
--- INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
+ INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
   
 END
