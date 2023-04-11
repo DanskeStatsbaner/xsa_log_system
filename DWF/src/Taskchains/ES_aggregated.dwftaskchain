@@ -24,6 +24,25 @@
           "status": "NEUTRAL"
         }
       ]
+    },
+    "3": {
+      "inline": {
+        "type": "executeProcedure",
+        "taskGroup": "hanaNative",
+        "description": "Sends rawdata for Expensive Statements",
+        "parameterValues": [
+          {
+            "id": "procName",
+            "value": "DataWareHouse.Database.Procedures::ES_rawdata"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "1",
+          "status": "NEUTRAL"
+        }
+      ]
     }
   }
 }
