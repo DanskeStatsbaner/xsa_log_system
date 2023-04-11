@@ -341,7 +341,10 @@ ES_aggregated = SELECT
 					REC_PER_EXEC,
 					CPU_PER_EXEC_MS,
 					MEM_USED_GB,
-					MEM_PER_EXEC_GB
+					MEM_PER_EXEC_GB,
+					APPLICATION_NAME,
+					APP_USER,
+					WORKLOAD_CLASS_NAME
 				FROM :SAP_TABLE;
 /*
 Runs in all procedures containing humio ingestion.
@@ -375,6 +378,9 @@ IF RECORD_COUNT(:ES_aggregated) >= 1 THEN
 			CPU_PER_EXEC_MS = :ES_aggregated."CPU_PER_EXEC_MS"[:k];
 			MEM_USED_GB = :ES_aggregated."MEM_USED_GB"[:k];
 			MEM_PER_EXEC_GB = :ES_aggregated."MEM_PER_EXEC_GB"[:k];
+			APPLICATION_NAME = :ES_aggregated."APPLICATION_NAME"[:k];
+			APP_USER = :ES_aggregated."APP_USER"[:k];
+			WORKLOAD_CLASS_NAME = :ES_aggregated."WORKLOAD_CLASS_NAME"[:k];
 				CALL "DataWareHouse.Database.Synonyms::humio"(
 			    MESSAGE => 'Unit Test',
 			    LOG_LEVEL => 'WARNING',
@@ -390,7 +396,10 @@ IF RECORD_COUNT(:ES_aggregated) >= 1 THEN
 			    				'", "REC_PER_EXEC":"' || :REC_PER_EXEC ||
 			    				'", "CPU_PER_EXEC_MS":"' || :CPU_PER_EXEC_MS ||
 			    				'", "MEM_USED_GB":"' || :MEM_USED_GB ||
-			    				'", "MEM_PER_EXEC_GB":"' || :MEM_PER_EXEC_GB 
+			    				'", "MEM_PER_EXEC_GB":"' || :MEM_PER_EXEC_GB ||
+			    				'", "APPLICATION_NAME":"' || :APPLICATION_NAME ||
+			    				'", "APP_USER":"' || :APP_USER ||
+			    				'", "WORKLOAD_CLASS_NAME":"' || :WORKLOAD_CLASS_NAME 
 			       ||'"',
 			    JWT => :ingesttoken,
 			    EXCEPTION_ON_ERROR => 1
