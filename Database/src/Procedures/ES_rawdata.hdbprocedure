@@ -234,7 +234,7 @@ FROM
           -1 MIN_DURATION_S,
           -1 MIN_SQL_TEXT_LENGTH,
           '%' OPERATIONS,     /* TOTAL for total values per statement (AGGREGATED_EXECUTION + CALL + EXECUTE + EXECUTE_DDL + INSERT + UPDATE + DELETE + COMPILE), various individual steps like SELECT or COMPILE */
-          'SCHEMA_NAME' AGGREGATE_BY,                         /* TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation */
+          'NONE' AGGREGATE_BY,                         /* TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation */
         			/* Marek Janczura: Extended with 4 new columns*/
           'NONE' TIME_AGGREGATE_BY,                    /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
           'LENGTH' ORDER_BY,                             /* TIME, DURATION, MEMORY, COUNT, CPU, EXECUTIONS, LENGTH */
