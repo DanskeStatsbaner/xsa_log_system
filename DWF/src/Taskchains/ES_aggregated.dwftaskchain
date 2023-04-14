@@ -10,11 +10,15 @@
       "inline": {
         "type": "executeProcedure",
         "taskGroup": "hanaNative",
-        "description": "Sends Aggregated Expensive Statements",
+        "description": "Logs for applications",
         "parameterValues": [
           {
             "id": "procName",
             "value": "DataWareHouse.Database.Procedures::ES_aggregated"
+          },
+          {
+            "id": "procForm.AGGREGATE_OPTION",
+            "value": "APPLICATION_NAME"
           }
         ]
       },
@@ -29,11 +33,38 @@
       "inline": {
         "type": "executeProcedure",
         "taskGroup": "hanaNative",
-        "description": "Sends rawdata for Expensive Statements",
+        "description": "Logs for Users",
         "parameterValues": [
           {
             "id": "procName",
-            "value": "DataWareHouse.Database.Procedures::ES_rawdata"
+            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
+          },
+          {
+            "id": "procForm.AGGREGATE_OPTION",
+            "value": "APP_USER"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "1",
+          "status": "NEUTRAL"
+        }
+      ]
+    },
+    "4": {
+      "inline": {
+        "type": "executeProcedure",
+        "taskGroup": "hanaNative",
+        "description": "Logs for SCHEMA's",
+        "parameterValues": [
+          {
+            "id": "procName",
+            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
+          },
+          {
+            "id": "procForm.AGGREGATE_OPTION",
+            "value": "SCHEMA_NAME"
           }
         ]
       },

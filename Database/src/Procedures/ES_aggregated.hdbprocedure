@@ -1,4 +1,9 @@
-PROCEDURE "DataWareHouse.Database.Procedures::ES_aggregated"()
+PROCEDURE "DataWareHouse.Database.Procedures::ES_aggregated"(
+	
+	IN aggregate_option NVARCHAR(500)
+	/* Input parameter should be: TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation 
+	SCHEMA_NAME, APP_USER, APPLICATION_NAME	*/
+)
 --===========================
 /*
 ----------------------------------------------------------------------------------------------
@@ -234,7 +239,7 @@ FROM
           -1 MIN_DURATION_S,
           -1 MIN_SQL_TEXT_LENGTH,
           '%' OPERATIONS,     /* TOTAL for total values per statement (AGGREGATED_EXECUTION + CALL + EXECUTE + EXECUTE_DDL + INSERT + UPDATE + DELETE + COMPILE), various individual steps like SELECT or COMPILE */
-          'SCHEMA_NAME' AGGREGATE_BY,                         /* TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation */
+          :aggregate_option AGGREGATE_BY,                         /* TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation */
         			/* Marek Janczura: Extended with 4 new columns*/
           'NONE' TIME_AGGREGATE_BY,                    /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
           'LENGTH' ORDER_BY,                             /* TIME, DURATION, MEMORY, COUNT, CPU, EXECUTIONS, LENGTH */
@@ -382,7 +387,7 @@ IF RECORD_COUNT(:ES_aggregated) >= 1 THEN
 			APP_USER = :ES_aggregated."APP_USER"[:k];
 			WORKLOAD_CLASS_NAME = :ES_aggregated."WORKLOAD_CLASS_NAME"[:k];
 				CALL "DataWareHouse.Database.Synonyms::humio"(
-			    MESSAGE => 'Unit Test',
+			    MESSAGE => aggregate_option,
 			    LOG_LEVEL => 'WARNING',
 			    HOST => 'HANA',
 			    SRC => 'ES_aggregated.hdbprocedure',
