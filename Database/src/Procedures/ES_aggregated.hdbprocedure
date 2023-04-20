@@ -31,6 +31,7 @@ DECLARE FIRST_FROM NVARCHAR(2500);
 DECLARE HANA_LOG_COMMENT NVARCHAR(500) = '';
 DECLARE STATEMENT_ID Bigint;
 DECLARE MEM_REQ_GB, MEM_USED_GB, MEM_LIMIT_GB DECIMAL (10,2);
+--DECLARE NUM_RECS_ES_LOG Integer;
 
 RUNTIME_START = CURRENT_TIMESTAMP;
 HANA_LOG_NAME ='ES_aggregated';
@@ -38,6 +39,35 @@ SELECT IFNULL(MAX("RUNTIME_START"),'2023-03-01 09:00:00.000000000') INTO LAST_RU
 WHERE "NAME" = 'ES_aggregated';
 
 
+--== DELTA logic
+--Catch log into internal table
+
+it_expensive_statements = SELECT * FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS" WHERE OPERATION !='AGGREGATED_EXECUTION';
+it_expensive_statements_new = 
+SELECT * FROM :it_expensive_statements
+	INNER JOIN --SELECT ONLY NEW RECORDS
+		(	SELECT concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION) longKey 
+			FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS"
+			MINUS
+			SELECT "longKey" 
+			FROM "DataWareHouse.Database.Tables::log.es_processing"
+			
+		) new_records
+	ON new_records.longKey = concat(concat(concat(:it_expensive_statements.STATEMENT_ID,:it_expensive_statements.CONNECTION_ID),:it_expensive_statements.START_TIME), :it_expensive_statements.OPERATION);
+--ADD REMAINING ROWS
+--Wite keys of the records that will be processed. Used in the delta process
+UPSERT "DataWareHouse.Database.Tables::log.es_processing"
+SELECT  concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION), CURRENT_TIMESTAMP
+FROM :it_expensive_statements;
+
+SELECT count(*) FROM :it_expensive_statements;
+SELECT count(*) FROM :it_expensive_statements_new;
+
+SELECT * FROM :it_expensive_statements WHERE STATEMENT_STRING LIKE 'SELECT TOP 250000%';--wycina za duzo, bo nie wyswietla
+SELECT * FROM :it_expensive_statements_new WHERE STATEMENT_STRING LIKE 'SELECT TOP 250000%';--wycina za duzo, bo nie wyswietla
+
+-- DELTA logic END
+ 
 		
 SAP_TABLE = 
 SELECT
@@ -252,7 +282,7 @@ FROM
           "DataWareHouse.Database.Synonyms::DUMMY"
       )
     ) BI INNER JOIN
-      "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS" ES ON
+      :it_expensive_statements_new ES ON
         CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(ES.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE ES.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
         ES.HOST LIKE BI.HOST AND
         TO_VARCHAR(ES.PORT) LIKE BI.PORT AND
@@ -387,7 +417,7 @@ IF RECORD_COUNT(:ES_aggregated) >= 1 THEN
 			APP_USER = :ES_aggregated."APP_USER"[:k];
 			WORKLOAD_CLASS_NAME = :ES_aggregated."WORKLOAD_CLASS_NAME"[:k];
 				CALL "DataWareHouse.Database.Synonyms::humio"(
-			    MESSAGE => aggregate_option,
+			    MESSAGE => aggregate_option,--aggregate_option,
 			    LOG_LEVEL => 'WARNING',
 			    HOST => 'HANA',
 			    SRC => 'ES_aggregated.hdbprocedure',

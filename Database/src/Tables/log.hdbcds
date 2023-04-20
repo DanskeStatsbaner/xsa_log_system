@@ -23,6 +23,13 @@ context log {
         COMMENT 			: String(1024);
             
     };
+    
+    entity es_processing {
+        
+        key longKey		:String(1024) not null;
+        RUNTIME				: UTCTimestamp not null; /*time of the rocedure execution*/
+    };
+    
 
   
 
