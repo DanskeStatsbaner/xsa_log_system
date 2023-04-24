@@ -10,61 +10,11 @@
       "inline": {
         "type": "executeProcedure",
         "taskGroup": "hanaNative",
-        "description": "Logs for applications",
+        "description": "Logs for applications, schema and users",
         "parameterValues": [
           {
             "id": "procName",
-            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
-          },
-          {
-            "id": "procForm.AGGREGATE_OPTION",
-            "value": "APPLICATION_NAME"
-          }
-        ]
-      },
-      "preconditions": [
-        {
-          "from": "1",
-          "status": "NEUTRAL"
-        }
-      ]
-    },
-    "3": {
-      "inline": {
-        "type": "executeProcedure",
-        "taskGroup": "hanaNative",
-        "description": "Logs for Users",
-        "parameterValues": [
-          {
-            "id": "procName",
-            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
-          },
-          {
-            "id": "procForm.AGGREGATE_OPTION",
-            "value": "APP_USER"
-          }
-        ]
-      },
-      "preconditions": [
-        {
-          "from": "1",
-          "status": "NEUTRAL"
-        }
-      ]
-    },
-    "4": {
-      "inline": {
-        "type": "executeProcedure",
-        "taskGroup": "hanaNative",
-        "description": "Logs for SCHEMA's",
-        "parameterValues": [
-          {
-            "id": "procName",
-            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
-          },
-          {
-            "id": "procForm.AGGREGATE_OPTION",
-            "value": "SCHEMA_NAME"
+            "value": "DataWareHouse.Database.Procedures::ES_main"
           }
         ]
       },
