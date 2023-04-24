@@ -1,0 +1,64 @@
+PROCEDURE "DataWareHouse.Database.Procedures::ES_main"()
+--===========================
+/*
+----------------------------------------------------------------------------------------------
+ 04.2023, @Marek Janczura
+Read current expensive statements and refresh DELTA
+Update DELTA
+*/
+
+LANGUAGE SQLSCRIPT
+SQL SECURITY INVOKER
+
+--READS SQL DATA AS --for DEBUG session only END
+-- COMMENT FOR DEBUGGIER:
+AS
+BEGIN
+
+DECLARE k, CONN_ID, NUM_OOMS, EXECUTIONS Integer;
+DECLARE OOM_TIME,RUNTIME_START, RUNTIME_END, LAST_RUN Timestamp;
+DECLARE ingesttoken NVARCHAR(2500);
+DECLARE HOST, PORT, STATEMENT_HASH, TRACEFILE_NAME, EVENT_REASON,HANA_LOG_NAME, ENVIRONMENT,  WORKLOAD_CLASS_NAME, EXECUTION_ENGINE,SCHEMA_NAME,USER_NAME, APPLICATION_NAME, APP_USER  NVARCHAR(250);
+DECLARE ELAPSED_MS, CPU_MS, ELA_PER_EXEC_MS, REC_PER_EXEC, CPU_PER_EXEC_MS, MEM_PER_EXEC_GB DECIMAL (10,2);
+DECLARE STATEMENT_STRING NVARCHAR(3000);
+DECLARE ACCESSED_OBJECT_NAMES NVARCHAR(2500); 
+DECLARE FIRST_FROM NVARCHAR(2500);
+DECLARE HANA_LOG_COMMENT NVARCHAR(500) = '';
+DECLARE STATEMENT_ID Bigint;
+DECLARE MEM_REQ_GB, MEM_USED_GB, MEM_LIMIT_GB DECIMAL (10,2);
+--DECLARE NUM_RECS_ES_LOG Integer;
+
+RUNTIME_START = CURRENT_TIMESTAMP;
+HANA_LOG_NAME ='ES_aggregated';
+SELECT IFNULL(MAX("RUNTIME_START"),'2023-03-01 09:00:00.000000000') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.procedure_run"
+WHERE "NAME" = 'ES_aggregated';
+
+
+--== DELTA logic
+--Catch log into internal table
+--Calculate in memory table that holds the only new recrods
+
+it_expensive_statements = SELECT * FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS" WHERE OPERATION !='AGGREGATED_EXECUTION';
+it_expensive_statements_new = 
+SELECT * FROM :it_expensive_statements
+	INNER JOIN --SELECT ONLY NEW RECORDS
+		(	SELECT concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION) longKey 
+			FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS"
+			MINUS
+			SELECT "longKey" 
+			FROM "DataWareHouse.Database.Tables::log.es_processing"
+			
+		) new_records
+	ON new_records.longKey = concat(concat(concat(:it_expensive_statements.STATEMENT_ID,:it_expensive_statements.CONNECTION_ID),:it_expensive_statements.START_TIME), :it_expensive_statements.OPERATION);
+--ADD REMAINING ROWS
+--Wite keys of the records that will be processed. Used in the delta process
+UPSERT "DataWareHouse.Database.Tables::log.es_processing"
+SELECT  concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION), CURRENT_TIMESTAMP
+FROM :it_expensive_statements;
+
+SELECT * FROM :it_expensive_statements_new;
+CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'SCHEMA_NAME'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new);
+CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'APPLICATION_NAME'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new);
+CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'APP_USER'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new);
+ 
+END
