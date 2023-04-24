@@ -38,7 +38,7 @@ WHERE "NAME" = 'ES_aggregated';
 --Catch log into internal table
 --Calculate in memory table that holds the only new recrods
 
-it_expensive_statements = SELECT * FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS" WHERE OPERATION !='AGGREGATED_EXECUTION';
+it_expensive_statements = SELECT * FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS" WHERE OPERATION ='AGGREGATED_EXECUTION';
 it_expensive_statements_new = 
 SELECT * FROM :it_expensive_statements
 	INNER JOIN --SELECT ONLY NEW RECORDS
