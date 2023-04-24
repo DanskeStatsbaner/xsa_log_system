@@ -1,6 +1,53 @@
 PROCEDURE "DataWareHouse.Database.Procedures::ES_aggregated"(
 	
-	IN aggregate_option NVARCHAR(500)
+	IN aggregate_option NVARCHAR(500),
+	 it_expensive_statements_new table (
+
+			"HOST" VARCHAR(64),
+	"PORT" INTEGER,
+	"CONNECTION_ID" INTEGER,
+	"TRANSACTION_ID" INTEGER,
+	"UPDATE_TRANSACTION_ID" BIGINT,
+	"STATEMENT_ID" VARCHAR(20),
+	"STATEMENT_EXECUTION_ID" BIGINT,
+	"PARENT_STATEMENT_ID" VARCHAR(20),
+	"STATEMENT_HASH" VARCHAR(32),
+	"DB_USER" NVARCHAR(256),
+	"SCHEMA_NAME" NVARCHAR(256),
+	"APP_USER" NVARCHAR(256),
+	"START_TIME" Timestamp,
+	"DURATION_MICROSEC" BIGINT,
+	"OBJECT_NAME" NVARCHAR(5000),
+	"OPERATION" NVARCHAR(5000),
+	"RECORDS" BIGINT,
+	"STATEMENT_STRING" NCLOB,
+	"PARAMETERS" NVARCHAR(5000),
+	"ERROR_CODE" INTEGER,
+	"ERROR_TEXT" NVARCHAR(5000),
+	"LOCK_WAIT_COUNT" BIGINT,
+	"LOCK_WAIT_DURATION" BIGINT,
+	"ALLOC_MEM_SIZE_ROWSTORE" BIGINT,
+	"ALLOC_MEM_SIZE_COLSTORE" BIGINT,
+	"MEMORY_SIZE" BIGINT,
+	"REUSED_MEMORY_SIZE" BIGINT,
+	"CPU_TIME" BIGINT,
+	"PASSPORT_ROOT_CONTEXT_ID" VARCHAR(32),
+	"PASSPORT_TRANSACTION_ID" VARCHAR(32),
+	"PASSPORT_CONNECTION_ID" VARCHAR(32),
+	"PASSPORT_CONNECTION_COUNTER" BIGINT,
+	"STATEMENT_START_TIME" Timestamp,
+	"APPLICATION_SOURCE" NVARCHAR(256),
+	"APPLICATION_NAME" NVARCHAR(256),
+	"NETWORK_MESSAGE_ID" BIGINT,
+	"WORKLOAD_CLASS_NAME" NVARCHAR(256),
+	"PRIORITY" INTEGER,
+	"STATEMENT_THREAD_LIMIT" INTEGER,
+	"STATEMENT_MEMORY_LIMIT" INTEGER,
+	"SESSION_VARIABLES" NCLOB,
+	"TOTAL_STATEMENT_MEMORY_LIMIT" INTEGER,
+	"TOTAL_STATEMENT_THREAD_LIMIT" INTEGER,
+	"LONGKEY" NVARCHAR(5000)
+	 )
 	/* Input parameter should be: TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation 
 	SCHEMA_NAME, APP_USER, APPLICATION_NAME	*/
 )
@@ -39,34 +86,8 @@ SELECT IFNULL(MAX("RUNTIME_START"),'2023-03-01 09:00:00.000000000') INTO LAST_RU
 WHERE "NAME" = 'ES_aggregated';
 
 
---== DELTA logic
---Catch log into internal table
 
-it_expensive_statements = SELECT * FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS" WHERE OPERATION !='AGGREGATED_EXECUTION';
-it_expensive_statements_new = 
-SELECT * FROM :it_expensive_statements
-	INNER JOIN --SELECT ONLY NEW RECORDS
-		(	SELECT concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION) longKey 
-			FROM "DataWareHouse.Database.Virtualtables::M_EXPENSIVE_STATEMENTS"
-			MINUS
-			SELECT "longKey" 
-			FROM "DataWareHouse.Database.Tables::log.es_processing"
-			
-		) new_records
-	ON new_records.longKey = concat(concat(concat(:it_expensive_statements.STATEMENT_ID,:it_expensive_statements.CONNECTION_ID),:it_expensive_statements.START_TIME), :it_expensive_statements.OPERATION);
---ADD REMAINING ROWS
---Wite keys of the records that will be processed. Used in the delta process
-UPSERT "DataWareHouse.Database.Tables::log.es_processing"
-SELECT  concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION), CURRENT_TIMESTAMP
-FROM :it_expensive_statements;
 
-SELECT count(*) FROM :it_expensive_statements;
-SELECT count(*) FROM :it_expensive_statements_new;
-
-SELECT * FROM :it_expensive_statements WHERE STATEMENT_STRING LIKE 'SELECT TOP 250000%';--wycina za duzo, bo nie wyswietla
-SELECT * FROM :it_expensive_statements_new WHERE STATEMENT_STRING LIKE 'SELECT TOP 250000%';--wycina za duzo, bo nie wyswietla
-
--- DELTA logic END
  
 		
 SAP_TABLE = 
