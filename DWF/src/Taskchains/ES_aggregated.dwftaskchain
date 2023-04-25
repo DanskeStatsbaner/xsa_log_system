@@ -43,6 +43,74 @@
           "status": "NEUTRAL"
         }
       ]
+    },
+    "4": {
+      "inline": {
+        "type": "executeProcedure",
+        "taskGroup": "hanaNative",
+        "description": "Schemas",
+        "parameterValues": [
+          {
+            "id": "procName",
+            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
+          },
+          {
+            "id": "procForm.AGGREGATE_OPTION",
+            "value": "SCHEMA_NAME"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "2",
+          "status": "OK"
+        }
+      ]
+    },
+    "5": {
+      "inline": {
+        "type": "executeProcedure",
+        "taskGroup": "hanaNative",
+        "description": "Users",
+        "parameterValues": [
+          {
+            "id": "procName",
+            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
+          },
+          {
+            "id": "procForm.AGGREGATE_OPTION",
+            "value": "APP_USER"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "4",
+          "status": "OK"
+        }
+      ]
+    },
+    "6": {
+      "inline": {
+        "type": "executeProcedure",
+        "taskGroup": "hanaNative",
+        "parameterValues": [
+          {
+            "id": "procName",
+            "value": "DataWareHouse.Database.Procedures::ES_aggregated"
+          },
+          {
+            "id": "procForm.AGGREGATE_OPTION",
+            "value": "APPLICATION_NAME"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "5",
+          "status": "OK"
+        }
+      ]
     }
   }
 }

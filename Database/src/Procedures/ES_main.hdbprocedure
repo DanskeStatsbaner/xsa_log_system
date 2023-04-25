@@ -140,8 +140,12 @@ UPSERT "DataWareHouse.Database.Tables::log.es_processing"
 SELECT  concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION), CURRENT_TIMESTAMP
 FROM :it_expensive_statements_new;
 
-CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'SCHEMA_NAME'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new);
-CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'APPLICATION_NAME'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new);
-CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'APP_USER'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new);
- 
+DELETE FROM  "DataWareHouse.Database.Tables::log.es_new_logs";
+UPSERT "DataWareHouse.Database.Tables::log.es_new_logs"
+SELECT *  FROM  :it_expensive_statements_new;
+
+--:it_expensive_statements_new
+--CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'SCHEMA_NAME'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new
+--CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'APPLICATION_NAME'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new)
+--CALL "DataWareHouse.Database.Procedures::ES_aggregated"(AGGREGATE_OPTION => 'APP_USER'/*<NVARCHAR(500)>*/,IT_EXPENSIVE_STATEMENTS_NEW => :it_expensive_statements_new)
 END

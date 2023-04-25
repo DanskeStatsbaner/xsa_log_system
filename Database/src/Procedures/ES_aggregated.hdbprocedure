@@ -1,53 +1,6 @@
 PROCEDURE "DataWareHouse.Database.Procedures::ES_aggregated"(
 	
-	IN aggregate_option NVARCHAR(500),
-	 it_expensive_statements_new table (
-
-	"HOST" VARCHAR(64),
-	"PORT" INTEGER,
-	"CONNECTION_ID" INTEGER,
-	"TRANSACTION_ID" INTEGER,
-	"UPDATE_TRANSACTION_ID" BIGINT,
-	"STATEMENT_ID" VARCHAR(20),
-	"STATEMENT_EXECUTION_ID" BIGINT,
-	"PARENT_STATEMENT_ID" VARCHAR(20),
-	"STATEMENT_HASH" VARCHAR(32),
-	"DB_USER" NVARCHAR(256),
-	"SCHEMA_NAME" NVARCHAR(256),
-	"APP_USER" NVARCHAR(256),
-	"START_TIME" Timestamp,
-	"DURATION_MICROSEC" BIGINT,
-	"OBJECT_NAME" NVARCHAR(1),
-	"OPERATION" NVARCHAR(5000),
-	"RECORDS" BIGINT,
-	"STATEMENT_STRING" NVARCHAR(1),
-	"PARAMETERS" VARCHAR(1),
-	"ERROR_CODE" INTEGER,
-	"ERROR_TEXT" NVARCHAR(1),
-	"LOCK_WAIT_COUNT" BIGINT,
-	"LOCK_WAIT_DURATION" BIGINT,
-	"ALLOC_MEM_SIZE_ROWSTORE" BIGINT,
-	"ALLOC_MEM_SIZE_COLSTORE" BIGINT,
-	"MEMORY_SIZE" BIGINT,
-	"REUSED_MEMORY_SIZE" BIGINT,
-	"CPU_TIME" BIGINT,
-	"PASSPORT_ROOT_CONTEXT_ID" VARCHAR(32),
-	"PASSPORT_TRANSACTION_ID" VARCHAR(32),
-	"PASSPORT_CONNECTION_ID" VARCHAR(32),
-	"PASSPORT_CONNECTION_COUNTER" BIGINT,
-	"STATEMENT_START_TIME" Timestamp,
-	"APPLICATION_SOURCE" NVARCHAR(256),
-	"APPLICATION_NAME" NVARCHAR(256),
-	"NETWORK_MESSAGE_ID" BIGINT,
-	"WORKLOAD_CLASS_NAME" NVARCHAR(256),
-	"PRIORITY" INTEGER,
-	"STATEMENT_THREAD_LIMIT" INTEGER,
-	"STATEMENT_MEMORY_LIMIT" INTEGER,
-	"SESSION_VARIABLES" NCLOB,
-	"TOTAL_STATEMENT_MEMORY_LIMIT" INTEGER,
-	"TOTAL_STATEMENT_THREAD_LIMIT" INTEGER
-	--"LONGKEY" NVARCHAR(5000)
-	 )
+	IN aggregate_option NVARCHAR(50)
 	 
 	/* Input parameter should be: TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation 
 	SCHEMA_NAME, APP_USER, APPLICATION_NAME	*/
@@ -85,11 +38,6 @@ RUNTIME_START = CURRENT_TIMESTAMP;
 HANA_LOG_NAME ='ES_aggregated';
 SELECT IFNULL(MAX("RUNTIME_START"),'2023-03-01 09:00:00.000000000') INTO LAST_RUN FROM "DataWareHouse.Database.Tables::log.procedure_run"
 WHERE "NAME" = 'ES_aggregated';
-
-
-
-
- 
 		
 SAP_TABLE = 
 SELECT
@@ -269,9 +217,9 @@ FROM
 		"WORKLOAD_CLASS_NAME"
       FROM
       ( SELECT                                       /* Modification section */
-          --'1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
           -- In the next run do not read again same statements
-          SUBSTRING (LAST_RUN,0,4) || '/' || SUBSTRING (LAST_RUN,6,2) || '/' || SUBSTRING (LAST_RUN,9,2) || ' '|| SUBSTRING (LAST_RUN,12,8) BEGIN_TIME,
+          --SUBSTRING (LAST_RUN,0,4) || '/' || SUBSTRING (LAST_RUN,6,2) || '/' || SUBSTRING (LAST_RUN,9,2) || ' '|| SUBSTRING (LAST_RUN,12,8) BEGIN_TIME,
           '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
           'SERVER' TIMEZONE,                              /* SERVER, UTC */
           '%' HOST,
@@ -304,7 +252,7 @@ FROM
           "DataWareHouse.Database.Synonyms::DUMMY"
       )
     ) BI INNER JOIN
-      :it_expensive_statements_new ES ON
+       "DataWareHouse.Database.Tables::log.es_new_logs" ES ON
         CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(ES.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE ES.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
         ES.HOST LIKE BI.HOST AND
         TO_VARCHAR(ES.PORT) LIKE BI.PORT AND
@@ -439,7 +387,7 @@ IF RECORD_COUNT(:ES_aggregated) >= 1 THEN
 			APP_USER = :ES_aggregated."APP_USER"[:k];
 			WORKLOAD_CLASS_NAME = :ES_aggregated."WORKLOAD_CLASS_NAME"[:k];
 				CALL "DataWareHouse.Database.Synonyms::humio"(
-			    MESSAGE => aggregate_option,--aggregate_option,
+			    MESSAGE => :aggregate_option,--aggregate_option,
 			    LOG_LEVEL => 'WARNING',
 			    HOST => 'HANA',
 			    SRC => 'ES_aggregated.hdbprocedure',
@@ -474,6 +422,6 @@ IF RECORD_COUNT(:ES_aggregated) >= 1 THEN
   RUNTIME_END = CURRENT_TIMESTAMP;
   /* Logs the procedure runs*/
 -- COMMENT FOR DEBUGGIER:	
- INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :HANA_LOG_COMMENT);	
+ INSERT INTO "DataWareHouse.Database.Tables::log.procedure_run" ("NAME", "RUNTIME_START", "RUNTIME_END", "COMMENT") VALUES(:HANA_LOG_NAME, :RUNTIME_START, :RUNTIME_END, :aggregate_option);	
   
 END
