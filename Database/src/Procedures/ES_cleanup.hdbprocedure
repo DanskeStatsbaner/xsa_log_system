@@ -1,0 +1,32 @@
+PROCEDURE "DataWareHouse.Database.Procedures::ES_cleanup"()
+--===========================
+/*
+----------------------------------------------------------------------------------------------
+ 04.2023, @Marek Janczura
+Clean the delta buforr used in the ES_main procedure.
+*/
+
+LANGUAGE SQLSCRIPT
+SQL SECURITY INVOKER
+
+--READS SQL DATA AS --for DEBUG session only END
+-- COMMENT FOR DEBUGGIER:
+AS
+BEGIN
+
+DECLARE RUNTIME_START, LAST_RUN Timestamp;
+RUNTIME_START = CURRENT_TIMESTAMP;
+
+-- 1. Get the last run of ES process to clean all data untill the previous day
+	SELECT IFNULL(MAX("RUNTIME_START"),'2023-03-01 09:00:00.000000000') 
+	INTO LAST_RUN 
+	FROM "DataWareHouse.Database.Tables::log.procedure_run"
+	WHERE "NAME" = 'ES_aggregated';
+
+-- 2. Clean the delta buffor for ES
+-- NOTE: in case the process runs without issue, M_EXPENSIVE_STTEMENTS is completely refilled in with the new data fter 3 hours. So cleaning internal buffor every 24 hours is secure.
+	DELETE
+	FROM "DataWareHouse.Database.Tables::log.es_processing"
+	WHERE RUNTIME < LAST_RUN;
+			
+END
