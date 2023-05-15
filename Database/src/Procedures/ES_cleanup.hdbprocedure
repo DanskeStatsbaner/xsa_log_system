@@ -27,6 +27,8 @@ RUNTIME_START = CURRENT_TIMESTAMP;
 -- NOTE: in case the process runs without issue, M_EXPENSIVE_STTEMENTS is completely refilled in with the new data fter 3 hours. So cleaning internal buffor every 24 hours is secure.
 	DELETE
 	FROM "DataWareHouse.Database.Tables::log.es_processing"
-	WHERE RUNTIME < LAST_RUN;
+	WHERE RUNTIME < add_seconds(LAST_RUN,-6*3600);-- remove all older than 6 hours, so that we do not impact ongoing process.
+	
+	
 			
 END
