@@ -76,10 +76,21 @@ context log {
 	TOTAL_STATEMENT_MEMORY_LIMIT :Integer;
 	TOTAL_STATEMENT_THREAD_LIMIT :Integer;
     };
-    
-
-  
-
-   
-    
+        entity es_audit_logs
+    {
+    key START_DATE :LocalDate;
+    key START_TIME :UTCTimestamp;
+	key STATEMENT_HASH :hana.VARCHAR(32);
+	key OPERATION :String(5000);
+	HOST :hana.VARCHAR(64);
+	DB_USER :String(256);
+	SCHEMA_NAME :String(256);
+	APP_USER :String(256);
+	DURATION_MICROSEC :Integer64;
+	OBJECT_NAME :String(1);
+	RECORDS :Integer64;
+	APPLICATION_SOURCE :String(256);
+	APPLICATION_NAME :String(256);
+	WORKLOAD_CLASS_NAME :String(256);
+    };
 };
