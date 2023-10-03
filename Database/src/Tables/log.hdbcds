@@ -46,7 +46,7 @@ context log {
 	APP_USER :String(256);
 	START_TIME :UTCTimestamp;
 	DURATION_MICROSEC :Integer64;
-	OBJECT_NAME :String(1);
+	OBJECT_NAME :String(5000);
 	OPERATION :String(5000);
 	RECORDS :Integer64;
 	STATEMENT_STRING :String(1);

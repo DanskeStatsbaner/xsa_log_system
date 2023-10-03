@@ -111,6 +111,25 @@
           "status": "OK"
         }
       ]
+    },
+    "7": {
+      "inline": {
+        "type": "executeFlowGraph",
+        "taskGroup": "hanaNative",
+        "description": "AUDIT",
+        "parameterValues": [
+          {
+            "id": "flowGraphName",
+            "value": "DataWareHouse.Database.Flowgraphs::ES_audit"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "2",
+          "status": "OK"
+        }
+      ]
     }
   }
 }

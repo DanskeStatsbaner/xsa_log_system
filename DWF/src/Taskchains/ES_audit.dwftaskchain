@@ -1,0 +1,29 @@
+{
+  "taskList": {
+    "1": {
+      "inline": {
+        "type": "START",
+        "taskGroup": "com.sap.dwf.toe.executionControl"
+      }
+    },
+    "2": {
+      "inline": {
+        "type": "executeFlowGraph",
+        "taskGroup": "hanaNative",
+        "description": "Audit logs",
+        "parameterValues": [
+          {
+            "id": "flowGraphName",
+            "value": "DataWareHouse.Database.Flowgraphs::ES_audit"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "1",
+          "status": "NEUTRAL"
+        }
+      ]
+    }
+  }
+}
