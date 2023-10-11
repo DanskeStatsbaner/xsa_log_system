@@ -142,7 +142,7 @@ SELECT  concat(concat(concat(STATEMENT_ID,CONNECTION_ID),START_TIME), OPERATION)
 FROM :it_expensive_statements_new;
 
 DELETE FROM  "DataWareHouse.Database.Tables::log.es_new_logs";
-UPSERT "DataWareHouse.Database.Tables::log.es_new_logs"
+INSERT INTO "DataWareHouse.Database.Tables::log.es_new_logs"
 SELECT *  FROM  :it_expensive_statements_new;
 
 --:it_expensive_statements_new

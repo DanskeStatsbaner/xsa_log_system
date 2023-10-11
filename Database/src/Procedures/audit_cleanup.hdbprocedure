@@ -1,0 +1,23 @@
+PROCEDURE "DataWareHouse.Database.Procedures::audit_cleanup"()
+--===========================
+/*
+----------------------------------------------------------------------------------------------
+ 04.2023, @Marek Janczura
+Remove the audit logs older than 6 months.
+*/
+
+LANGUAGE SQLSCRIPT
+SQL SECURITY INVOKER
+
+--READS SQL DATA AS --for DEBUG session only END
+-- COMMENT FOR DEBUGGIER:
+AS
+BEGIN
+--1) Remove the data
+	DELETE
+	FROM "DataWareHouse.Database.Tables::log.es_audit_logs"
+	WHERE START_DATE < add_days(to_date(NOW()),-180); -- remove all logs older than 6 months
+
+--2) UNLOAD from memory. The above operation touches first partitions and load into memory
+	UNLOAD "DataWareHouse.Database.Tables::log.es_audit_logs";
+END
