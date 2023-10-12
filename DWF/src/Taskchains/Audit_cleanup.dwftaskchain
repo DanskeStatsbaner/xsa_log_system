@@ -8,13 +8,13 @@
     },
     "2": {
       "inline": {
-        "type": "executeFlowGraph",
+        "type": "executeProcedure",
         "taskGroup": "hanaNative",
-        "description": "Audit logs",
+        "description": "Clean logs older than 6 months",
         "parameterValues": [
           {
-            "id": "flowGraphName",
-            "value": "DataWareHouse.Database.Flowgraphs::ES_audit"
+            "id": "procName",
+            "value": "DataWareHouse.Database.Procedures::audit_cleanup"
           }
         ]
       },
