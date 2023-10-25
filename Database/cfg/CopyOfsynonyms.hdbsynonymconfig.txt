@@ -1,0 +1,32 @@
+{
+  "DataWareHouse.Database.Synonyms::humio": {
+    "target": {
+      "object": "XSA_KEY_VAULT.db.Procedures::humio",
+      "*.configure": "XSA_KEY_VAULT"
+    }
+  },
+  "DataWareHouse.Database.Synonyms::token": {
+    "target": {
+      "object": "XSA_KEY_VAULT.db.Procedures::token",
+      "*.configure": "XSA_KEY_VAULT"
+    }
+  },
+  "DataWareHouse.Database.Synonyms::DUMMY": {
+    "target": {
+      "object": "DUMMY",
+      "schema": "SYS"
+    }
+  },
+  "DataWareHouse.Database.Synonyms::OBJECTS": {
+    "target": {
+      "object": "OBJECTS",
+      "schema": "SYS"
+    }
+  },
+   "DataWareHouse.Database.Synonyms::es_audit_logs": {
+    "target": {
+      "object": "DataWareHouse.Database.Tables::log.es_audit_logs",
+      "*.configure": "XSA_AUDIT"
+    }
+  }
+}

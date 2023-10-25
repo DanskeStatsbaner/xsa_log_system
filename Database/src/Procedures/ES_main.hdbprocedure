@@ -50,7 +50,7 @@ it_expensive_statements = SELECT
 	"OBJECT_NAME",
 	"OPERATION",
 	"RECORDS",
-	'' "STATEMENT_STRING",
+	to_clob("STATEMENT_STRING") as "STATEMENT_STRING",
 	'' "PARAMETERS",
 	"ERROR_CODE",
 	'' "ERROR_TEXT",
