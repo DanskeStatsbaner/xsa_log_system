@@ -95,5 +95,29 @@ context log {
 	WORKLOAD_CLASS_NAME :String(256);
 	STATEMENT_STRING   :hana.CLOB;
     };
+    	entity es_audit_logs2
+    {
+    key START_DATE :LocalDate;
+    key START_TIME :UTCTimestamp;
+	key STATEMENT_HASH :hana.VARCHAR(32);
+	key STATEMENT_ID :hana.VARCHAR(20);
+	OPERATION :String(5000);
+	HOST :hana.VARCHAR(64);
+	DB_USER :String(256);
+	SCHEMA_NAME :String(256);
+	APP_USER :String(256);
+	OBJECT_NAME :String(5000);
+	RECORDS :Integer64;
+	APPLICATION_SOURCE :String(256);
+	APPLICATION_NAME :String(256);
+	WORKLOAD_CLASS_NAME :String(256);
+    };
+    
+     entity es_statement_string
+    {
+    key START_DATE :LocalDate;
+	key STATEMENT_HASH :hana.VARCHAR(32);
+	STATEMENT_STRING   :hana.CLOB;
+    };
 
 };

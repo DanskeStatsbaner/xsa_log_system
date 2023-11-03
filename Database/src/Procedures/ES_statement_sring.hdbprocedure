@@ -1,0 +1,50 @@
+PROCEDURE "DataWareHouse.Database.Procedures::ES_statement_string"()
+--===========================
+/*
+----------------------------------------------------------------------------------------------
+ 04.2023, @Marek Janczura
+Read current expensive statements and refresh DELTA
+Update DELTA
+*/
+
+LANGUAGE SQLSCRIPT
+SQL SECURITY INVOKER
+
+--READS SQL DATA AS --for DEBUG session only END
+-- COMMENT FOR DEBUGGIER:
+AS
+BEGIN
+
+DECLARE k,duplicate Integer;
+DECLARE iv_statement_hash NVARCHAR(32);
+DECLARE iv_statement_string CLOB;
+
+-- w osobnej funkcji, zeby lepsza kontrola byla
+-- Tu nalezaloby dodac przetwarzanie powyzszej tabeli/widoku
+-- wyciagac same statement_has, statemet_string na dany, data bez powtorzen
+-- pozniejwe flowgraphie po aggregaccji reszty dokleic sama statement_string
+
+-- 1) kopia wszystkich
+it_statement = 
+SELECT "STATEMENT_HASH","STATEMENT_STRING"
+FROM "DataWareHouse.Database.Tables::log.es_new_logs";
+
+-- 2) wybieranie unikalnych
+--w petli budowac tabelke wewnetrzna, a nie zapis fizyczny. Zapis jest kosztowny
+
+IF RECORD_COUNT(:it_statement) >= 1 THEN
+		FOR k IN 1..RECORD_COUNT(:it_statement) DO 
+			--check if already exist
+			iv_statement_hash= :it_statement."STATEMENT_HASH"[:k];
+			SELECT count(*) into duplicate FROM "DataWareHouse.Database.Tables::log.es_statement_string"
+			WHERE "STATEMENT_HASH" = iv_statement_hash;
+			IF duplicate = 0 THEN 
+				iv_statement_string= :it_statement."STATEMENT_STRING"[:k];
+				-- wite to table
+				INSERT INTO "DataWareHouse.Database.Tables::log.es_statement_string" 
+				VALUES(to_date(CURRENT_TIMESTAMP),:iv_statement_hash,:iv_statement_string);
+			END IF;
+		END FOR;
+END IF;
+
+END
