@@ -98,9 +98,10 @@ context log {
     	entity es_audit_logs2
     {
     key START_DATE :LocalDate;
-    key START_TIME :UTCTimestamp;
+    key START_TIME_MIN :UTCTimestamp;
 	key STATEMENT_HASH :hana.VARCHAR(32);
 	key STATEMENT_ID :hana.VARCHAR(20);
+	START_TIME_MAX :UTCTimestamp;
 	OPERATION :String(5000);
 	HOST :hana.VARCHAR(64);
 	DB_USER :String(256);
