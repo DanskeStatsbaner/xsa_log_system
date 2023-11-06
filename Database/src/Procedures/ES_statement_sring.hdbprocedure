@@ -18,6 +18,7 @@ BEGIN
 DECLARE k,duplicate Integer;
 DECLARE iv_statement_hash NVARCHAR(32);
 DECLARE iv_statement_string CLOB;
+DECLARE iv_start_time Timestamp;
 
 -- w osobnej funkcji, zeby lepsza kontrola byla
 -- Tu nalezaloby dodac przetwarzanie powyzszej tabeli/widoku
@@ -26,7 +27,7 @@ DECLARE iv_statement_string CLOB;
 
 -- 1) kopia wszystkich
 it_statement = 
-SELECT "STATEMENT_HASH","STATEMENT_STRING"
+SELECT "STATEMENT_HASH","STATEMENT_STRING", "START_TIME"
 FROM "DataWareHouse.Database.Tables::log.es_new_logs";
 
 -- 2) wybieranie unikalnych
@@ -40,9 +41,10 @@ IF RECORD_COUNT(:it_statement) >= 1 THEN
 			WHERE "STATEMENT_HASH" = iv_statement_hash;
 			IF duplicate = 0 THEN 
 				iv_statement_string= :it_statement."STATEMENT_STRING"[:k];
+				iv_start_time = :it_statement."START_TIME"[:k];
 				-- wite to table
 				INSERT INTO "DataWareHouse.Database.Tables::log.es_statement_string" 
-				VALUES(to_date(CURRENT_TIMESTAMP),:iv_statement_hash,:iv_statement_string);
+				VALUES(to_date(:iv_start_time ),:iv_statement_hash,:iv_statement_string);
 			END IF;
 		END FOR;
 END IF;
