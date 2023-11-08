@@ -149,6 +149,25 @@
           "status": "OK"
         }
       ]
+    },
+    "9": {
+      "inline": {
+        "type": "SUB",
+        "taskGroup": "com.sap.dwf.toe.executionControl",
+        "description": "Clean moved items to NT0",
+        "parameterValues": [
+          {
+            "id": "taskChainId",
+            "value": "DataWareHouse.Processes.Taskchains#Audit_cleanup"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "from": "8",
+          "status": "OK"
+        }
+      ]
     }
   }
 }
