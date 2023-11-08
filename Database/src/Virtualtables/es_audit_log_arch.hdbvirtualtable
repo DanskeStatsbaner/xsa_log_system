@@ -1,0 +1,1 @@
+VIRTUAL TABLE "DataWareHouse.Database.Virtualtables::es_audit_logs_arch" AT "HANA_NT0_AUDIT"."<NULL>"."P_AUDIT_ARCH"."P_AUDIT_ARCH.db.Views::v_es_audit_logs_arch"

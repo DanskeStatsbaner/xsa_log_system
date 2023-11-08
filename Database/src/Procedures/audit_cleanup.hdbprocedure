@@ -2,8 +2,8 @@ PROCEDURE "DataWareHouse.Database.Procedures::audit_cleanup"()
 --===========================
 /*
 ----------------------------------------------------------------------------------------------
- 04.2023, @Marek Janczura
-Remove the audit logs older than 6 months.
+ 11.2023, @Marek Janczura
+Remove the audit logs older than 30 days assuring they were moved correctly to NT0.
 */
 
 LANGUAGE SQLSCRIPT
@@ -13,11 +13,28 @@ SQL SECURITY INVOKER
 -- COMMENT FOR DEBUGGIER:
 AS
 BEGIN
---1) Remove the data
-	DELETE
-	FROM "DataWareHouse.Database.Tables::log.es_audit_logs"
-	WHERE START_DATE < add_days(to_date(NOW()),-180); -- remove all logs older than 6 months
 
---2) UNLOAD from memory. The above operation touches first partitions and load into memory
-	UNLOAD "DataWareHouse.Database.Tables::log.es_audit_logs";
+DECLARE iv_max_start_date_logs_NT0 Date;
+DECLARE iv_max_start_date_statement_NT0 Date;
+DECLARE iv_copy_status_NT0 NVarchar(4);
+
+
+--1( Set max
+	SELECT MAX("START_DATE") into  iv_max_start_date_logs_NT0 FROM "DataWareHouse.Database.Virtualtables::es_audit_logs_arch";
+	SELECT MAX("START_DATE") into iv_max_start_date_statement_NT0 FROM  "DataWareHouse.Database.Virtualtables::es_audit_statement_arch";
+	
+	--check the status of copy to NT0. Delete only in case he processing is done
+	SELECT "copy_status" into  iv_copy_status_NT0 FROM "DataWareHouse.Database.Virtualtables::audit_status"
+	WHERE "copy_date" = current_date;
+	
+	--proceed with delete
+	IF :iv_copy_status_NT0 = 'OK' THEN
+		--delete only selected period of data (copy is safe to to verified MAX statements)
+		DELETE FROM "DataWareHouse.Database.Tables::log.es_audit_logs2"
+		WHERE "START_DATE" <= :iv_max_start_date_logs_NT0;
+		
+		DELETE FROM "DataWareHouse.Database.Tables::log.es_statement_string"
+		WHERE "START_DATE" <= :iv_max_start_date_statement_NT0;
+	
+	END IF;
 END

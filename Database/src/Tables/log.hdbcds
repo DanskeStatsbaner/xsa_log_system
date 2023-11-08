@@ -76,7 +76,7 @@ context log {
 	TOTAL_STATEMENT_MEMORY_LIMIT :Integer;
 	TOTAL_STATEMENT_THREAD_LIMIT :Integer;
     };
-        entity es_audit_logs
+    /*    entity es_audit_logs
     {
     key START_DATE :LocalDate;
     key START_TIME :UTCTimestamp;
@@ -95,6 +95,7 @@ context log {
 	WORKLOAD_CLASS_NAME :String(256);
 	STATEMENT_STRING   :hana.CLOB;
     };
+    */
     	entity es_audit_logs2
     {
     key START_DATE :LocalDate;

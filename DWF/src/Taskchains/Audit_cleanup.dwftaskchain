@@ -10,7 +10,7 @@
       "inline": {
         "type": "executeProcedure",
         "taskGroup": "hanaNative",
-        "description": "Clean logs older than 6 months",
+        "description": "Clean logs already copied to NT0 (older than 30 days)",
         "parameterValues": [
           {
             "id": "procName",
