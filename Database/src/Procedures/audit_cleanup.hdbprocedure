@@ -16,7 +16,7 @@ BEGIN
 
 DECLARE iv_max_start_date_logs_NT0 Date;
 DECLARE iv_max_start_date_statement_NT0 Date;
-DECLARE iv_copy_status_NT0 NVarchar(4);
+DECLARE iv_copy_status_NT0 Integer;
 DECLARE iv_flag Integer; -- to keep informatino whether the cleanup was already done for a day. It should run once per day only.
 
 
@@ -27,13 +27,13 @@ DECLARE iv_flag Integer; -- to keep informatino whether the cleanup was already 
 		WHERE "START_DATE" <= :iv_max_start_date_logs_NT0;
 		
 	--check the status of copy to NT0. Delete only in case he processing is done
-	SELECT "copy_status" into  iv_copy_status_NT0 FROM "DataWareHouse.Database.Virtualtables::audit_status"
+	SELECT count(*) into  iv_copy_status_NT0 FROM "DataWareHouse.Database.Virtualtables::audit_status"
 	WHERE "copy_date" = current_date;
 	
 	--proceed with delete
 --	Is there anythng to delete?
 	IF :iv_flag > 0 THEN
-	IF :iv_copy_status_NT0 = 'OK' THEN
+	IF :iv_copy_status_NT0 > 0 THEN
 		--delete only selected period of data (copy is safe to to verified MAX statements)
 		DELETE FROM "DataWareHouse.Database.Tables::log.es_audit_logs2"
 		WHERE "START_DATE" <= :iv_max_start_date_logs_NT0;
