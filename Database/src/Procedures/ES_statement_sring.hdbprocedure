@@ -2,9 +2,8 @@ PROCEDURE "DataWareHouse.Database.Procedures::ES_statement_string"()
 --===========================
 /*
 ----------------------------------------------------------------------------------------------
- 04.2023, @Marek Janczura
-Read current expensive statements and refresh DELTA
-Update DELTA
+ 12.2023, @Marek Janczura
+Remove duplicates for statement_hash and sotre it separately with CLOB.
 */
 
 LANGUAGE SQLSCRIPT
@@ -15,38 +14,18 @@ SQL SECURITY INVOKER
 AS
 BEGIN
 
-DECLARE k,duplicate Integer;
-DECLARE iv_statement_hash NVARCHAR(32);
-DECLARE iv_statement_string CLOB;
-DECLARE iv_start_time Timestamp;
+--usuniecie duplikatow. jest CLOB wiec nie mozna group by 
+it_RankedRows = 
+WITH RankedRows AS
+(SELECT "START_TIME","STATEMENT_HASH","STATEMENT_STRING",
+           ROW_NUMBER() OVER (PARTITION BY "STATEMENT_HASH" ORDER BY "START_TIME") as rn
+FROM "DataWareHouse.Database.Tables::log.es_new_logs"
+)
+SELECT *
+FROM RankedRows
+WHERE rn = 1;
 
--- w osobnej funkcji, zeby lepsza kontrola byla
--- Tu nalezaloby dodac przetwarzanie powyzszej tabeli/widoku
--- wyciagac same statement_has, statemet_string na dany, data bez powtorzen
--- pozniejwe flowgraphie po aggregaccji reszty dokleic sama statement_string
-
--- 1) kopia wszystkich
-it_statement = 
-SELECT "STATEMENT_HASH","STATEMENT_STRING", "START_TIME"
-FROM "DataWareHouse.Database.Tables::log.es_new_logs";
-
--- 2) wybieranie unikalnych
---w petli budowac tabelke wewnetrzna, a nie zapis fizyczny. Zapis jest kosztowny
-
-IF RECORD_COUNT(:it_statement) >= 1 THEN
-		FOR k IN 1..RECORD_COUNT(:it_statement) DO 
-			--check if already exist
-			iv_statement_hash= :it_statement."STATEMENT_HASH"[:k];
-			SELECT count(*) into duplicate FROM "DataWareHouse.Database.Tables::log.es_statement_string"
-			WHERE "STATEMENT_HASH" = iv_statement_hash;
-			IF duplicate = 0 THEN 
-				iv_statement_string= :it_statement."STATEMENT_STRING"[:k];
-				iv_start_time = :it_statement."START_TIME"[:k];
-				-- wite to table
-				INSERT INTO "DataWareHouse.Database.Tables::log.es_statement_string" 
-				VALUES(to_date(:iv_start_time ),:iv_statement_hash,:iv_statement_string);
-			END IF;
-		END FOR;
-END IF;
+INSERT INTO "DataWareHouse.Database.Tables::log.es_statement_string"
+SELECT TO_DATE("START_TIME"),"STATEMENT_HASH","STATEMENT_STRING" FROM :it_RankedRows;
 
 END
