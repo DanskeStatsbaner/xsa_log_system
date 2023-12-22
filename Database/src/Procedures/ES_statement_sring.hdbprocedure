@@ -25,7 +25,8 @@ SELECT *
 FROM RankedRows
 WHERE rn = 1;
 
-INSERT INTO "DataWareHouse.Database.Tables::log.es_statement_string"
+UPSERT "DataWareHouse.Database.Tables::log.es_statement_string" ("START_DATE","STATEMENT_HASH","STATEMENT_STRING")
 SELECT TO_DATE("START_TIME"),"STATEMENT_HASH","STATEMENT_STRING" FROM :it_RankedRows;
+--WITH PRIMARY KEY is not needed when we have subquery.
 
 END
